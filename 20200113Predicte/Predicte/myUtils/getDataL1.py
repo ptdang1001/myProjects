@@ -14,7 +14,7 @@ from itertools import permutations
 sys.path.append(
     "/N/u/pdang/Carbonate/projects/20200113Predicte/Predicte"
 )
-import myutils.mydata
+import myData
 
 
 def get3dMap(totalRow, totalCol, noiseMean, noiseMbias, noiseStdbias, labels,
@@ -25,22 +25,22 @@ def get3dMap(totalRow, totalCol, noiseMean, noiseMbias, noiseStdbias, labels,
     b3 = [1, -1, 0, 0, 0, 0, 0]
     l1Bases = [b1, b2, b3]
 
-    baseTypeNum, basesMtrx = myutils.mydata.getBasesMtrxs(l1Bases)
-    randomRowColIdx = myutils.mydata.getRandomRowColIdx(low=0,
+    baseTypeNum, basesMtrx = myData.getBasesMtrxs(l1Bases)
+    randomRowColIdx = myData.getRandomRowColIdx(low=0,
                                                         hight=totalCol - 1,
                                                         row=2,
                                                         col=len(b1),
                                                         number=500)
 
     # mtx2map entity
-    mtx2map = myutils.mydata.Mtrx23dMap(baseTypeNum, basesMtrx, totalRow,
+    mtx2map = myData.Mtrx23dMap(baseTypeNum, basesMtrx, totalRow,
                                         totalCol, randomRowColIdx)
 
     mapDatas = list(map(mtx2map.main, datas))
     mapDatas = torch.stack(mapDatas, 0)
 
     # add noise to mapDatas
-    _, mapDatas = myutils.mydata.addNumMeanNoise(mapDatas, labels,
+    _, mapDatas = myData.addNumMeanNoise(mapDatas, labels,
                                                  int(mapDatas.size()[0] / 3),
                                                  noiseMean, noiseMbias,
                                                  noiseStdbias)
@@ -63,7 +63,7 @@ def main(npms):
     overlap=1
 
     # partitions
-    noiseMean, labels_datas = myutils.mydata.getL1MeanData(
+    noiseMean, labels_datas = myData.getL1MeanData(
         mean,
         stdBias,
         noiseNorm,
@@ -85,11 +85,11 @@ def main(npms):
     #[print(labels[i], datas[i]) for i in range(len(labels))]
     #sys.exit()
     # shuffle data
-    datas = list(map(myutils.mydata.shuffleData, datas))
+    datas = list(map(myData.shuffleData, datas))
     datas = torch.stack(datas)
     # print(datas[100])
 
-    ssvdDatas = list(map(myutils.mydata.ssvd, datas))
+    ssvdDatas = list(map(myData.ssvd, datas))
     ssvdDatas = torch.stack(ssvdDatas).float()
 
     # get 3d map
@@ -98,14 +98,14 @@ def main(npms):
 
     # add noise to labels, datas
     datas = datas.view(zn * num, 1, totalRow, totalCol)
-    labels, datas = myutils.mydata.addNumMeanNoise(datas, labels,
+    labels, datas = myData.addNumMeanNoise(datas, labels,
                                                    int(datas.size()[0] / 3),
                                                    noiseMean, noiseMbias,
                                                    noiseStdbias)
 
     # add noise to ssvddatas ,labels
     ssvdDatas = ssvdDatas.view(zn * num, 1, totalRow, totalCol)
-    _, ssvdDatas = myutils.mydata.addNumMeanNoise(ssvdDatas, labels,
+    _, ssvdDatas = myData.addNumMeanNoise(ssvdDatas, labels,
                                                   int(ssvdDatas.size()[0] / 3),
                                                   mean, noiseMbias,
                                                   noiseStdbias)

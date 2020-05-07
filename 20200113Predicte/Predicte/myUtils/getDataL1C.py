@@ -12,7 +12,7 @@ import numpy as np
 sys.path.append(
     "/geode2/home/u070/pdang/Carbonate/projects/20200113Predicte/Predicte"
 )
-import myutils.mydata
+import myData
 
 
 def main(dpms):
@@ -32,39 +32,39 @@ def main(dpms):
     probType = "l1c"
 
     # partitions
-    labels_datas = myutils.mydata.getL1CMeanData(mean, stdBias, noiseNorm, noiseMbias,
+    labels_datas = myData.getL1CMeanData(mean, stdBias, noiseNorm, noiseMbias,
                                                  noiseStdbias, num, zn, xn, yn,
                                                  totalRow, totalCol, overlap)
 
-    labels, datas = myutils.mydata.combineLabelData(labels_datas, zn, num)
+    labels, datas = myData.combineLabelData(labels_datas, zn, num)
     #[print(labels[i], datas[i]) for i in range(len(labels))]
     #sys.exit()
     #shuffle data
-    datas = list(map(myutils.mydata.shuffleData, datas))
+    datas = list(map(myData.shuffleData, datas))
     datas = torch.stack(datas)
     
     #get ssvd datas
-    ssvdDatas = list(map(myutils.mydata.ssvd, datas))
+    ssvdDatas = list(map(myData.ssvd, datas))
     ssvdDatas = torch.stack(ssvdDatas).float()
 
     #get 3d map
-    mapData = myutils.mydata.get3dMap(probType, totalRow, totalCol, mean,
+    mapData = myData.get3dMap(probType, totalRow, totalCol, mean,
                                       noiseMbias, noiseStdbias, labels, datas)
     #add number noise to 3dmap data
-    _, mapData = myutils.mydata.addNumMeanNoise(mapData, labels,
+    _, mapData = myData.addNumMeanNoise(mapData, labels,
                                                 int(mapData.size()[0] / 3),
                                                 mean, noiseMbias, noiseStdbias)
     
     #add noise to labels, datas
     datas = datas.view(zn * num, 1, totalRow, totalCol)
-    labels, datas = myutils.mydata.addNumMeanNoise(datas, labels,
+    labels, datas = myData.addNumMeanNoise(datas, labels,
                                                    int(datas.size()[0] / 3),
                                                    mean, noiseMbias,
                                                    noiseStdbias)
     
     # add noise to ssvddatas ,labels
     ssvdDatas = ssvdDatas.view(zn * num, 1, totalRow, totalCol)
-    _, ssvdDatas = myutils.mydata.addNumMeanNoise(ssvdDatas, labels,
+    _, ssvdDatas = myData.addNumMeanNoise(ssvdDatas, labels,
                                                   int(ssvdDatas.size()[0] / 3),
                                                   mean, noiseMbias,
                                                   noiseStdbias)
