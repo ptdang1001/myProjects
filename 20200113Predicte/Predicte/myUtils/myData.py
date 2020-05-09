@@ -2,8 +2,6 @@
 
 # sys libs
 import sys
-import time
-import multiprocessing
 import csv
 
 # 3rd libs
@@ -13,13 +11,14 @@ from torch.utils.data import Dataset, DataLoader
 import numpy as np
 from itertools import permutations
 import itertools
-import numba
 from scipy.sparse.linalg import svds, eigs
+
 
 # my libs
 
 def test():
-	print("hello")
+    print("hello")
+
 
 # gene dataset loader
 class GeneDataset(Dataset):
@@ -92,8 +91,7 @@ class Mtrx23dMap():
         return (featureMap)
 
 
-def get3dMap(probType, totalRow, totalCol, noiseMean, noiseMbias, noiseStdbias,
-             labels, datas):
+def get3dMap(probType, totalRow, totalCol, datas):
     # l1 bases
     bases = []
     if probType == "l1c":
@@ -101,11 +99,19 @@ def get3dMap(probType, totalRow, totalCol, noiseMean, noiseMbias, noiseStdbias,
         b2 = [1, 1, 1, 1, 0, 0, 0]
         b3 = [1, 1, 0, 0, 0, 0, 0]
         bases = [b1, b2, b3]
-    else:
+    elif probType == "l1":
         b1 = [1, 1, 1, -1, -1, -1, 0]
         b2 = [1, 1, -1, -1, 0, 0, 0]
         b3 = [1, -1, 0, 0, 0, 0, 0]
         bases = [b1, b2, b3]
+    else:
+        b1 = [1, 1, 1, 1, 1, 1, 0]
+        b2 = [1, 1, 1, 1, 0, 0, 0]
+        b3 = [1, 1, 0, 0, 0, 0, 0]
+        b4 = [1, 1, 1, -1, -1, -1, 0]
+        b5 = [1, 1, -1, -1, 0, 0, 0]
+        b6 = [1, -1, 0, 0, 0, 0, 0]
+        bases = [b1, b2, b3, b4, b5, b6]
 
     baseTypeNum, basesMtrx = getBasesMtrxs(bases)
     randomRowColIdx = getRandomRowColIdx(low=0,
@@ -171,15 +177,15 @@ def getRandomRowColIdx(low=0, hight=49, row=2, col=7, number=10):
 
 
 # merge 2 3d matries
-def merge2Mtrx(smallMtrx, bigMtrx, r, c, over=1):
+def merge2Mtrx(smallMtrx, bigMtrx, r, c, replace=0):
     # the size of a and b can be different
     z = 0
-    if over == 0:
+    if replace == 0:
         bigMtrx[z:smallMtrx.shape[0], r:r + smallMtrx.shape[1], c:c +
-                smallMtrx.shape[2]] += smallMtrx
+                                                                  smallMtrx.shape[2]] += smallMtrx
     else:
         bigMtrx[z:smallMtrx.shape[0], r:r + smallMtrx.shape[1], c:c +
-                smallMtrx.shape[2]] = smallMtrx
+                                                                  smallMtrx.shape[2]] = smallMtrx
     return (bigMtrx)
 
 
@@ -207,7 +213,7 @@ def getL1CMeanData(mean,
     for i in range(1, num + 1):
         label = i
         blocks = list()
-        blocks = [(torch.normal(mean, std)+(torch.randn(zn,xn,yn)*noiseNorm)) for k in range(i)]
+        blocks = [(torch.normal(mean, std) + (torch.randn(zn, xn, yn) * noiseNorm)) for k in range(i)]
 
         addNoiseRes = merge2Mtrx(blocks[0], noiseData, 0, 0)
         if i == 1:
@@ -222,7 +228,53 @@ def getL1CMeanData(mean,
                 r, c = r + xn, c + yn
             labels_datas.append([label, addNoiseRes.clone()])
         else:
-            r, c = int(xn / 2)+1, int(yn / 2)+1
+            r, c = int(xn / 2) + 1, int(yn / 2) + 1
+            for j in range(1, i):
+                addNoiseRes = merge2Mtrx(blocks[j], addNoiseRes, r, c)
+                r, c = r + int(xn / 2) + 1, c + int(yn / 2) + 1
+            labels_datas.append([label, addNoiseRes.clone()])
+    return (labels_datas)
+
+
+# get l1c normal blocks data
+def getL1CNormalData(normalBias,
+                     minusMean,
+                     num,
+                     zn,
+                     xn,
+                     yn,
+                     totalRow,
+                     totalCol,
+                     overlap):
+    # noise parameters
+    gaussianNoise = torch.randn(zn, totalRow, totalCol)
+    gaussianNoise = gaussianNoise - torch.mean(gaussianNoise)
+    gaussianNoise = torch.zeros(zn, totalRow, totalCol)  # zero noise
+    # prepare normal distribution data
+    labels_datas = list()
+    for i in range(1, num + 1):
+        label = i
+        blocks = list()
+        if minusMean == 0:
+            blocks = [torch.randn(zn, xn, yn) + normalBias for _ in range(i)]
+        else:
+            for _ in range(i):
+                block = torch.randn(zn, xn, yn)
+                block = block - torch.mean(block) + normalBias
+                blocks.append(block)
+
+        addNoiseRes = merge2Mtrx(blocks[0], gaussianNoise, 0, 0)
+        if i == 1:
+            labels_datas.append([label, addNoiseRes.clone()])
+            continue
+        if overlap == 0:
+            r, c = xn, yn
+            for j in range(1, i):
+                addNoiseRes = merge2Mtrx(blocks[j], addNoiseRes, r, c)
+                r, c = r + xn, c + yn
+            labels_datas.append([label, addNoiseRes.clone()])
+        else:
+            r, c = int(xn / 2) + 1, int(yn / 2) + 1
             for j in range(1, i):
                 addNoiseRes = merge2Mtrx(blocks[j], addNoiseRes, r, c)
                 r, c = r + int(xn / 2) + 1, c + int(yn / 2) + 1
@@ -245,7 +297,7 @@ def getL1MeanData(mean,
                   overlap=0):
     std = torch.ones(1, yn).add_(stdBias)
     blocksNum = num * zn
-    blocks = [((torch.normal(mean, std).t() * torch.normal(mean, std))+(torch.randn(xn,yn)*noiseNorm))
+    blocks = [((torch.normal(mean, std).t() * torch.normal(mean, std)) + (torch.randn(xn, yn) * noiseNorm))
               for _ in range(blocksNum)]
     blocks = torch.stack(blocks).view(num, zn, xn, yn)
 
@@ -253,7 +305,7 @@ def getL1MeanData(mean,
     noiseMean = int(torch.mean(blocks) + noiseMbias)
     noisestd = torch.ones(zn, totalRow, totalCol).add_(noiseStdbias)
     noiseData = torch.normal(noiseMean, noisestd)
-    #noiseData = torch.zeros(zn, totalRow, totalCol)
+    # noiseData = torch.zeros(zn, totalRow, totalCol)
     labels_datas = list()
     for i in range(1, num + 1):
         label = i
@@ -269,7 +321,7 @@ def getL1MeanData(mean,
             labels_datas.append([label, addNoiseRes.clone()])
 
         else:
-            r, c = int(xn / 2)+1, int(yn / 2)+1
+            r, c = int(xn / 2) + 1, int(yn / 2) + 1
             for j in range(1, i):
                 addNoiseRes = merge2Mtrx(blocks[j], addNoiseRes, r, c)
                 r, c = r + int(xn / 2) + 1, c + int(yn / 2) + 1
@@ -287,9 +339,20 @@ def addNumMeanNoise(data, label, num, mean, mbias, stdbias):
     mean = mean + mbias
     noiseData = torch.normal(mean, std)
     noiseLabel = torch.tensor([
-        0.0,
-    ] * num).long()
+                                  0.0,
+                              ] * num).long()
     data = torch.cat((data, noiseData), 0)
+    label = torch.cat((label, noiseLabel), 0)
+    return (label, data)
+
+
+# add many mean noise to the whole data
+def addNumGaussianNoise(data, label, num):
+    gaussianNoise = torch.randn_like(data)
+    gaussianNoise = gaussianNoise[0:num]
+    gaussianNoise = gaussianNoise - torch.mean(gaussianNoise)
+    noiseLabel = torch.tensor([0.0, ] * num).long()
+    data = torch.cat((data, gaussianNoise), 0)
     label = torch.cat((label, noiseLabel), 0)
     return (label, data)
 
@@ -357,8 +420,8 @@ def addNumNoise(data, label, num):
     y = data.size()[3]
     noiseData = (torch.randn(num, z, x, y).abs() * 100)
     noiseLabel = torch.tensor([
-        0.0,
-    ] * num).long()
+                                  0.0,
+                              ] * num).long()
     data = torch.cat((data, noiseData), 0)
     label = torch.cat((label, noiseLabel), 0)
     return (data, label)
@@ -387,10 +450,3 @@ def getRowColMaxPoolingFeatures(onePartition, allRowColIndex, filterTypes):
                               0)
     oneFeatureMap = oneFeatureMap.permute(2, 1, 0)
     return (oneFeatureMap)
-
-def create_csv(path,res):
-    with open(path,'w') as f:
-        csv_write = csv.writer(f)
-        csv_write.writerow(res)
-
-# tmp
