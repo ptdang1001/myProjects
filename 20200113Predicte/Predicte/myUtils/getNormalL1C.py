@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*
 
 # system libs
+import os
 import sys
 
 # 3rd libs
@@ -8,9 +9,8 @@ import torch
 import numpy as np
 
 # my libs
-sys.path.append(
-    "C:/users/pdang/Desktop/DATA/data.d/myGithubRepositories/myProjects/20200113Predicte/Predicte"
-)
+path = os.path.abspath("./Predicte")
+sys.path.append(path)
 import myUtils.myData
 
 
@@ -32,8 +32,8 @@ def main(runPams):
                                                    zn, xn, yn, totalRow,
                                                    totalCol, overlap)
     labels, datas = myUtils.myData.combineLabelData(labels_datas, zn, num)
-    #[print(labels[i], datas[i]) for i in range(len(labels))]
-    #sys.exit()
+    [print(labels[i], datas[i]) for i in range(len(labels))]
+    sys.exit()
     # shuffle data
     datas = list(map(myUtils.myData.shuffleData, datas))
     datas = torch.stack(datas)
@@ -57,14 +57,15 @@ def main(runPams):
     ssvdDatas = ssvdDatas.view(zn * num, 1, totalRow, totalCol)
     _, ssvdDatas = myUtils.myData.addNumGaussianNoise(
         ssvdDatas, labels, int(ssvdDatas.size()[0] / 3))
-    '''
+
     print(mapData.size())
     print(ssvdDatas.size())
     print(datas.size())
     print(labels.size())
-    '''
+
     return (labels, datas, ssvdDatas, mapData)
 
 
 if __name__ == "__main__":
-    main()
+    runPams = [0, 7, 0]
+    main(runPams)

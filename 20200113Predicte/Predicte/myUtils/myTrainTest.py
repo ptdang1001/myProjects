@@ -13,9 +13,8 @@ from torch.autograd import Variable
 from torch.utils.data import Dataset, DataLoader
 
 # my libs
-sys.path.append(
-    "C:/users/pdang/Desktop/DATA/data.d/myGithubRepositories/myProjects/20200113Predicte/Predicte"
-)
+path = os.path.abspath("./Predicte")
+sys.path.append(path)
 import myUtils.myData
 import myUtils.myEvaluation
 

@@ -10,9 +10,8 @@ import torch
 import torch.nn as nn
 
 # my libs
-sys.path.append(
-    "C:/users/pdang/Desktop/DATA/data.d/myGithubRepositories/myProjects/20200113Predicte/Predicte"
-)
+path = os.path.abspath("./Predicte")
+sys.path.append(path)
 import myModules
 import myUtils.myData
 import myUtils.myTrainTest
