@@ -8,17 +8,19 @@ import torch
 import numpy as np
 
 # my libs
-sys.path.append("C:/users/pdang/Desktop/DATA/data.d/myGithubRepositories/myProjects/20200113Predicte/Predicte")
+sys.path.append(
+    "C:/users/pdang/Desktop/DATA/data.d/myGithubRepositories/myProjects/20200113Predicte/Predicte"
+)
 import myUtils.myData
 
 
-def main():
+def main(runPams):
     # parameters
-    minusMean = 0
-    xn=7
-    normalBias = 0
+    minusMean = runPams[0]
+    xn = runPams[1]
+    normalBias = runPams[2]
     overlap = 0
-    zn = 5
+    zn = 3
     yn = xn
     num = 3
     totalRow = 50
@@ -26,8 +28,9 @@ def main():
     probType = "l1c"
 
     # partitions
-    labels_datas = myUtils.myData.getL1CNormalData(normalBias, minusMean, num, zn, xn, yn,
-                                                   totalRow, totalCol, overlap)
+    labels_datas = myUtils.myData.getL1CNormalData(normalBias, minusMean, num,
+                                                   zn, xn, yn, totalRow,
+                                                   totalCol, overlap)
     labels, datas = myUtils.myData.combineLabelData(labels_datas, zn, num)
     #[print(labels[i], datas[i]) for i in range(len(labels))]
     #sys.exit()
@@ -43,22 +46,23 @@ def main():
     mapData = myUtils.myData.get3dMap(probType, totalRow, totalCol, datas)
     # add number guassian noise to 3dmap data
     _, mapData = myUtils.myData.addNumGaussianNoise(mapData, labels,
-                                                int(mapData.size()[0] / 3))
-
+                                                    int(mapData.size()[0] / 3))
 
     # add gaussian noise to labels, datas
     datas = datas.view(zn * num, 1, totalRow, totalCol)
-    labels, datas = myUtils.myData.addNumGaussianNoise(datas, labels,
-                                                   int(datas.size()[0] / 3))
+    labels, datas = myUtils.myData.addNumGaussianNoise(
+        datas, labels, int(datas.size()[0] / 3))
 
     # add guassian noise to ssvddatas ,labels
     ssvdDatas = ssvdDatas.view(zn * num, 1, totalRow, totalCol)
-    _, ssvdDatas = myUtils.myData.addNumGaussianNoise(ssvdDatas, labels,
-                                                  int(ssvdDatas.size()[0] / 3))
+    _, ssvdDatas = myUtils.myData.addNumGaussianNoise(
+        ssvdDatas, labels, int(ssvdDatas.size()[0] / 3))
+    '''
     print(mapData.size())
     print(ssvdDatas.size())
     print(datas.size())
     print(labels.size())
+    '''
     return (labels, datas, ssvdDatas, mapData)
 
 

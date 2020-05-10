@@ -13,8 +13,8 @@ from itertools import permutations
 import itertools
 from scipy.sparse.linalg import svds, eigs
 
-
 # my libs
+
 
 def test():
     print("hello")
@@ -182,10 +182,10 @@ def merge2Mtrx(smallMtrx, bigMtrx, r, c, replace=0):
     z = 0
     if replace == 0:
         bigMtrx[z:smallMtrx.shape[0], r:r + smallMtrx.shape[1], c:c +
-                                                                  smallMtrx.shape[2]] += smallMtrx
+                smallMtrx.shape[2]] += smallMtrx
     else:
         bigMtrx[z:smallMtrx.shape[0], r:r + smallMtrx.shape[1], c:c +
-                                                                  smallMtrx.shape[2]] = smallMtrx
+                smallMtrx.shape[2]] = smallMtrx
     return (bigMtrx)
 
 
@@ -213,7 +213,10 @@ def getL1CMeanData(mean,
     for i in range(1, num + 1):
         label = i
         blocks = list()
-        blocks = [(torch.normal(mean, std) + (torch.randn(zn, xn, yn) * noiseNorm)) for k in range(i)]
+        blocks = [
+            (torch.normal(mean, std) + (torch.randn(zn, xn, yn) * noiseNorm))
+            for k in range(i)
+        ]
 
         addNoiseRes = merge2Mtrx(blocks[0], noiseData, 0, 0)
         if i == 1:
@@ -237,15 +240,8 @@ def getL1CMeanData(mean,
 
 
 # get l1c normal blocks data
-def getL1CNormalData(normalBias,
-                     minusMean,
-                     num,
-                     zn,
-                     xn,
-                     yn,
-                     totalRow,
-                     totalCol,
-                     overlap):
+def getL1CNormalData(normalBias, minusMean, num, zn, xn, yn, totalRow,
+                     totalCol, overlap):
     # noise parameters
     gaussianNoise = torch.randn(zn, totalRow, totalCol)
     gaussianNoise = gaussianNoise - torch.mean(gaussianNoise)
@@ -297,8 +293,8 @@ def getL1MeanData(mean,
                   overlap=0):
     std = torch.ones(1, yn).add_(stdBias)
     blocksNum = num * zn
-    blocks = [((torch.normal(mean, std).t() * torch.normal(mean, std)) + (torch.randn(xn, yn) * noiseNorm))
-              for _ in range(blocksNum)]
+    blocks = [((torch.normal(mean, std).t() * torch.normal(mean, std)) +
+               (torch.randn(xn, yn) * noiseNorm)) for _ in range(blocksNum)]
     blocks = torch.stack(blocks).view(num, zn, xn, yn)
 
     # noise parameters
@@ -339,8 +335,8 @@ def addNumMeanNoise(data, label, num, mean, mbias, stdbias):
     mean = mean + mbias
     noiseData = torch.normal(mean, std)
     noiseLabel = torch.tensor([
-                                  0.0,
-                              ] * num).long()
+        0.0,
+    ] * num).long()
     data = torch.cat((data, noiseData), 0)
     label = torch.cat((label, noiseLabel), 0)
     return (label, data)
@@ -351,7 +347,9 @@ def addNumGaussianNoise(data, label, num):
     gaussianNoise = torch.randn_like(data)
     gaussianNoise = gaussianNoise[0:num]
     gaussianNoise = gaussianNoise - torch.mean(gaussianNoise)
-    noiseLabel = torch.tensor([0.0, ] * num).long()
+    noiseLabel = torch.tensor([
+        0.0,
+    ] * num).long()
     data = torch.cat((data, gaussianNoise), 0)
     label = torch.cat((label, noiseLabel), 0)
     return (label, data)
@@ -420,8 +418,8 @@ def addNumNoise(data, label, num):
     y = data.size()[3]
     noiseData = (torch.randn(num, z, x, y).abs() * 100)
     noiseLabel = torch.tensor([
-                                  0.0,
-                              ] * num).long()
+        0.0,
+    ] * num).long()
     data = torch.cat((data, noiseData), 0)
     label = torch.cat((label, noiseLabel), 0)
     return (data, label)

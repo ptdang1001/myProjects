@@ -10,14 +10,14 @@ import torch
 import torch.nn as nn
 
 # my libs
-sys.path.append("C:/users/pdang/Desktop/DATA/data.d/myGithubRepositories/myProjects/20200113Predicte/Predicte")
+sys.path.append(
+    "C:/users/pdang/Desktop/DATA/data.d/myGithubRepositories/myProjects/20200113Predicte/Predicte"
+)
 import myModules
 import myUtils.myData
-import myTrainTest
+import myUtils.myTrainTest
 #import myUtils.myDraw
 import myUtils.getNormalL1C
-
-
 
 # parameters
 parser = argparse.ArgumentParser()
@@ -42,21 +42,13 @@ parser.add_argument("--n_print",
                     type=int,
                     default=200,
                     help="how many times training print one result")
-parser.add_argument("--xn",
-                    type=int,
-                    help="number of rows and cols")
-parser.add_argument("--noiseMBias",
-                    type=int,
-                    help="noiseMBias")
-parser.add_argument("--noiseStdBias",
-                    type=int,
-                    help="noiseStdBias")
-parser.add_argument("--noiseNorm",
-                    type=int,
-                    help="noiseNorm")
+parser.add_argument("--minusMean", type=int, help="if minus mean")
+parser.add_argument("--normBias", type=int, help="data plus bias")
+parser.add_argument("--xn", type=int, help="number of rows and cols")
+parser.add_argument("--noiseMBias", type=int, help="noiseMBias")
+parser.add_argument("--noiseStdBias", type=int, help="noiseStdBias")
+parser.add_argument("--noiseNorm", type=int, help="noiseNorm")
 opt = parser.parse_args()
-
-
 
 
 def main():
@@ -89,42 +81,58 @@ def main():
     slossFunc = nn.CrossEntropyLoss()
 
     #data parameters
-    dpms = list()
-    
-    xn=opt.xn
-    noiseMBias=opt.noiseMBias
-    noiseStdBias=opt.noiseStdBias
-    noiseNorm=opt.noiseNorm
+    runPams = list()
+    '''
+    minusMean = opt.minusMean
+    xn = opt.xn
+    normBias = opt.normBias
+    '''
+    minusMean = 0
+    xn = 7
+    normBias = 0
 
-    dpms.append(xn)
-    dpms.append(noiseMBias)
-    dpms.append(noiseStdBias)
-    dpms.append(noiseNorm)
-    # l1c
-    
-    olabel, odata, ssvdData, mapData= data.l1c.l1cdata.main(dpms)
+    runPams.append(minusMean)
+    runPams.append(xn)
+    runPams.append(normBias)
+    # l1c normal
+
+    olabel, odata, ssvdData, mapData = myUtils.getNormalL1C.main(runPams)
+    #[print(olabel[i], odata[i]) for i in range(20)]
+
+    print(olabel.size())
+    print(odata.size())
+    print(ssvdData.size())
+    print(mapData.size())
 
     # original 2d data
-    ores=myTrainTest.train_test(
-        olabel, odata, ocnn, device, ooptimizer, olossFunc, opt)
-    
+    ores = myUtils.myTrainTest.train_test(olabel, odata, ocnn, device,
+                                          ooptimizer, olossFunc, opt)
+
     # mapdata train and test
-    mres=myTrainTest.train_test(
-        olabel, mapData, mcnn, device, moptimizer, mlossFunc, opt)
+    mres = myUtils.myTrainTest.train_test(olabel, mapData, mcnn, device,
+                                          moptimizer, mlossFunc, opt)
 
     # ssvddata train and test
-    sres=myTrainTest.train_test(
-        olabel, ssvdData, scnn, device, soptimizer, slossFunc, opt)
+    sres = myUtils.myTrainTest.train_test(olabel, ssvdData, scnn, device,
+                                          soptimizer, slossFunc, opt)
     #prepare results
-    
+
     res = list()
-    [res.append(dpms[i]) for i in range(len(dpms))]
+    if minusMean == 0:
+        res.append("N(0,1)")
+    else:
+        res.append("N(0,1)-mean")
+    res.append(xn)
+    res.append(normBias)
+    res.append("N(0,1)-mean")
+    res.append("data+noise")
     res.append(ores)
     res.append(mres)
     res.append(sres)
     res = ','.join(str(i) for i in res)
     print(res)
-    return()
+    return ()
+
 
 if __name__ == "__main__":
     main()
