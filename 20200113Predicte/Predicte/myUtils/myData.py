@@ -93,7 +93,7 @@ class Mtrx23dMap():
 
 def get3dMap(probType, totalRow, totalCol, datas):
     # l1 bases
-    bases = []
+    bases = list()
     if probType == "l1c":
         b1 = [1, 1, 1, 1, 1, 1, 0]
         b2 = [1, 1, 1, 1, 0, 0, 0]
@@ -112,7 +112,6 @@ def get3dMap(probType, totalRow, totalCol, datas):
         b5 = [1, 1, -1, -1, 0, 0, 0]
         b6 = [1, -1, 0, 0, 0, 0, 0]
         bases = [b1, b2, b3, b4, b5, b6]
-
     baseTypeNum, basesMtrx = getBasesMtrxs(bases)
     randomRowColIdx = getRandomRowColIdx(low=0,
                                          hight=totalCol - 1,
@@ -245,7 +244,7 @@ def getL1CNormalData(normalBias, minusMean, num, zn, xn, yn, totalRow,
     # noise parameters
     gaussianNoise = torch.randn(zn, totalRow, totalCol)
     gaussianNoise = gaussianNoise - torch.mean(gaussianNoise)
-    gaussianNoise = torch.zeros(zn, totalRow, totalCol)  # zero noise
+    #gaussianNoise = torch.zeros(zn, totalRow, totalCol)  # zero noise
     # prepare normal distribution data
     labels_datas = list()
     for i in range(1, num + 1):
@@ -324,6 +323,51 @@ def getL1MeanData(mean,
             labels_datas.append([label, addNoiseRes.clone()])
 
     return (noiseMean, labels_datas)
+
+
+#  get l1 normal blocks data background noise is gaussian noise
+def getL1NormData(normalBias, minusMean, num, zn, xn, yn, totalRow, totalCol,
+                  overlap):
+    blocksNum = num * zn
+    blocks = list()
+    if minusMean == 0:
+        blocks = [
+            torch.matmul(torch.randn(xn, 1), torch.randn(1, xn)) + normalBias
+            for _ in range(blocksNum)
+        ]
+    else:
+        for _ in range(blocksNum):
+            block = torch.matmul(torch.randn(xn, 1), torch.randn(1, xn))
+            block = block - torch.mean(block) + normalBias
+            blocks.append(block)
+
+    blocks = torch.stack(blocks).view(num, zn, xn, yn)
+    # gaussian noise parameters
+    gaussianNoise = torch.randn(zn, totalRow, totalCol)
+    gaussianNoise = gaussianNoise - torch.mean(gaussianNoise)
+    #gaussianNoise = torch.zeros(zn, totalRow, totalCol)  #zero background noise
+
+    labels_datas = list()
+    for i in range(1, num + 1):
+        label = i
+        addNoiseRes = merge2Mtrx(blocks[0], gaussianNoise, 0, 0)
+        if i == 1:
+            labels_datas.append([label, addNoiseRes.clone()])
+            continue
+        if overlap == 0:
+            r, c = xn, yn
+            for j in range(1, i):
+                addNoiseRes = merge2Mtrx(blocks[j], addNoiseRes, r, c)
+                r, c = r + xn, c + yn
+            labels_datas.append([label, addNoiseRes.clone()])
+
+        else:
+            r, c = int(xn / 2) + 1, int(yn / 2) + 1
+            for j in range(1, i):
+                addNoiseRes = merge2Mtrx(blocks[j], addNoiseRes, r, c)
+                r, c = r + int(xn / 2) + 1, c + int(yn / 2) + 1
+            labels_datas.append([label, addNoiseRes.clone()])
+    return (labels_datas)
 
 
 # add many mean noise to the whole data

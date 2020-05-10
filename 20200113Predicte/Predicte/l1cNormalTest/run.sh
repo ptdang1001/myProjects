@@ -1,6 +1,6 @@
 #!/bin/bash
 
-for ((minusMean=0;miunsMean<=1;minusMean=minusMean+1))
+for minusMean in ${0..1}
 do
     for ((xn=7;xn<=16;xn=xn+3))
     do
