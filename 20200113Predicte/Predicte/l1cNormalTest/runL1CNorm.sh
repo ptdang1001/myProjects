@@ -1,27 +1,24 @@
 #!/bin/bash
 
-for ((xn=7;xn<=16;xn=xn+3))
+for ((minusMean=0;miunsMean<=1;minusMean=minusMean+1))
 do
-    for ((noiseMBias=0;noiseMBias<=50;noiseMBias=noiseMBias+10))
+    for ((xn=7;xn<=16;xn=xn+3))
     do
-        for ((noiseStdBias=0;noiseStdBias<=20;noiseStdBias=noiseStdBias+5))
+        for ((normBias=0;normBias<=5;normBias=normBias+1))
         do  
-            for ((noiseNorm=1;noiseNorm<=120;noiseNorm=noiseNorm+9))
-            do  
-                jobNum=$(squeue -u pdang | awk '$4=="pdang"' | wc -l)
-                if [ $jobNum -le 1 ]
-                then
-                    sbatch sbatchL1C.sh ${xn} ${noiseMBias} ${noiseStdBias} ${noiseNorm}
+            jobNum=$(squeue -u pdang | awk '$4=="pdang"' | wc -l)
+            if [ $jobNum -le 1 ]
+            then
+                sbatch sbatchL1C.sh ${minusMean} ${xn} ${normBias}
+                sleep 30s
+            else
+                while [ $jobNum -gt 1 ]
+                do
                     sleep 30s
-                else
-                    while [ $jobNum -gt 1 ]
-                    do
-                        sleep 30s
-                        jobNum=$(squeue -u pdang | awk '$4=="pdang"' | wc -l)
-                    done
-                    sbatch sbatchL1C.sh ${xn} ${noiseMBias} ${noiseStdBias} ${noiseNorm}
-               fi
-            done
+                    jobNum=$(squeue -u pdang | awk '$4=="pdang"' | wc -l)
+                done
+                sbatch sbatchL1C.sh ${minusMean} ${xn} ${normBias}
+            fi
         done
     done
 done

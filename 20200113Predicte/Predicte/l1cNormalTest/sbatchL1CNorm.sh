@@ -12,4 +12,4 @@
 #SBATCH --time=00:10:00
 
 #module load 
-python testL1C.py --xn $1 --noiseMBias $2 --noiseStdBias $3 --noiseNorm $4
+python testL1C.py --minusMean $1 --xn $2 --normBias $3
