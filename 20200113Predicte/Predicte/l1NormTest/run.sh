@@ -1,7 +1,7 @@
 #!/bin/bash
-for replace in $(0..1)
+for replace in {0..1}
 do
-    for minusMean in $(0..1)
+    for minusMean in {0..1}
     do
         for ((xn=7;xn<=16;xn=xn+1))
         do
