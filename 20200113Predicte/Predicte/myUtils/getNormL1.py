@@ -11,7 +11,8 @@ import numpy as np
 from itertools import permutations
 
 # my libs
-path = os.path.abspath("./Predicte")
+path = os.path.abspath("./Predicte")  #windos system
+#path = os.path.abspath("..") #linux system
 sys.path.append(path)
 import myUtils.myData
 
