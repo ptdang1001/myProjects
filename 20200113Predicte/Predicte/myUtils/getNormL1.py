@@ -18,9 +18,10 @@ import myUtils.myData
 
 def main(runPams):
     # parameters
-    minusMean = runPams[0]
-    xn = runPams[1]
-    normBias = runPams[2]
+    replace = runPams[0]
+    minusMean = runPams[1]
+    xn = runPams[2]
+    normBias = runPams[3]
     zn = 3
     yn = xn
     num = 3
@@ -32,7 +33,7 @@ def main(runPams):
     # partitions
     labels_datas = myUtils.myData.getL1NormData(normBias, minusMean, num, zn,
                                                 xn, yn, totalRow, totalCol,
-                                                overlap)
+                                                overlap, replace)
     labels = torch.cat(
         [torch.tensor([labels_datas[i][0]] * zn).long() for i in range(num)],
         dim=0)
@@ -64,14 +65,15 @@ def main(runPams):
     _, ssvdDatas = myUtils.myData.addNumGaussianNoise(
         ssvdDatas, labels, int(ssvdDatas.size()[0] / 3))
     #[print(labels[i], datas[i]) for i in range(len(labels))]
+    '''
     print(mapData.size())
     print(ssvdDatas.size())
     print(datas.size())
     print(labels.size())
-
+    '''
     return (labels, datas, ssvdDatas, mapData)
 
 
 if __name__ == "__main__":
-    runPams = [0, 5, 0]
+    runPams = [0, 0, 5, 0]
     main(runPams)

@@ -11,5 +11,5 @@
 #SBATCH --gres=gpu:p100:1
 #SBATCH --time=00:10:00
 
-#module load 
-python testMain.py --minusMean $1 --xn $2 --normBias $3
+#module load
+python testMain.py --replace $1 --minusMean $2 --xn $3 --normBias $4

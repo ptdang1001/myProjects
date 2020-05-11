@@ -327,7 +327,7 @@ def getL1MeanData(mean,
 
 #  get l1 normal blocks data background noise is gaussian noise
 def getL1NormData(normalBias, minusMean, num, zn, xn, yn, totalRow, totalCol,
-                  overlap):
+                  overlap, replace):
     blocksNum = num * zn
     blocks = list()
     if minusMean == 0:
@@ -350,14 +350,14 @@ def getL1NormData(normalBias, minusMean, num, zn, xn, yn, totalRow, totalCol,
     labels_datas = list()
     for i in range(1, num + 1):
         label = i
-        addNoiseRes = merge2Mtrx(blocks[0], gaussianNoise, 0, 0)
+        addNoiseRes = merge2Mtrx(blocks[0], gaussianNoise, 0, 0, replace)
         if i == 1:
             labels_datas.append([label, addNoiseRes.clone()])
             continue
         if overlap == 0:
             r, c = xn, yn
             for j in range(1, i):
-                addNoiseRes = merge2Mtrx(blocks[j], addNoiseRes, r, c)
+                addNoiseRes = merge2Mtrx(blocks[j], addNoiseRes, r, c, replace)
                 r, c = r + xn, c + yn
             labels_datas.append([label, addNoiseRes.clone()])
 

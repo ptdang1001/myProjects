@@ -16,7 +16,7 @@ import myModules
 import myUtils.myData
 import myUtils.myTrainTest
 #import myUtils.myDraw
-import myUtils.getNormalL1C
+import myUtils.getNormL1
 
 # parameters
 parser = argparse.ArgumentParser()
@@ -41,12 +41,10 @@ parser.add_argument("--n_print",
                     type=int,
                     default=200,
                     help="how many times training print one result")
+parser.add_argument("--replace", type=int, help="data+noise or data>noise")
 parser.add_argument("--minusMean", type=int, help="if minus mean")
 parser.add_argument("--normBias", type=int, help="data plus bias")
 parser.add_argument("--xn", type=int, help="number of rows and cols")
-parser.add_argument("--noiseMBias", type=int, help="noiseMBias")
-parser.add_argument("--noiseStdBias", type=int, help="noiseStdBias")
-parser.add_argument("--noiseNorm", type=int, help="noiseNorm")
 opt = parser.parse_args()
 
 
@@ -82,26 +80,24 @@ def main():
     #data parameters
     runPams = list()
     '''
+    replace = opt.replace
     minusMean = opt.minusMean
     xn = opt.xn
     normBias = opt.normBias
     '''
+    replace = 0
     minusMean = 0
     xn = 7
     normBias = 0
 
+    runPams.append(replace)
     runPams.append(minusMean)
     runPams.append(xn)
     runPams.append(normBias)
     # l1c normal
 
-    olabel, odata, ssvdData, mapData = myUtils.getNormalL1C.main(runPams)
-    #[print(olabel[i], odata[i]) for i in range(20)]
-
-    print(olabel.size())
-    print(odata.size())
-    print(ssvdData.size())
-    print(mapData.size())
+    olabel, odata, ssvdData, mapData = myUtils.getNormL1.main(runPams)
+    #[print(olabel[i], odata[i]) for i in range(12)]
 
     # original 2d data
     ores = myUtils.myTrainTest.train_test(olabel, odata, ocnn, device,
@@ -117,14 +113,16 @@ def main():
     #prepare results
 
     res = list()
-    if minusMean == 0:
-        res.append("N(0,1)")
+    if replace == 0:
+        res.append("x+z")
     else:
-        res.append("N(0,1)-mean")
+        res.append("x->z")
+    if minusMean == 0:
+        res.append("c*r+" + str(normBias))
+    else:
+        res.append("c*r-E+" + str(normBias))
     res.append(xn)
-    res.append(normBias)
-    res.append("N(0,1)-mean")
-    res.append("data+noise")
+    res.append("N(0,1)-E")
     res.append(ores)
     res.append(mres)
     res.append(sres)
