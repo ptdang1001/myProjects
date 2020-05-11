@@ -122,7 +122,7 @@ def main():
     else:
         res.append("c*r-E+" + str(normBias))
     res.append(xn)
-    res.append("N(0,1)-E")
+    res.append("N(01)-E")
     res.append(ores)
     res.append(mres)
     res.append(sres)
