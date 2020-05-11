@@ -22,7 +22,7 @@ def main(runPams):
     minusMean = runPams[1]
     xn = runPams[2]
     normBias = runPams[3]
-    zn = 3
+    zn = 1000
     yn = xn
     num = 3
     totalRow = 50

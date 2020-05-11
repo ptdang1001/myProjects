@@ -79,7 +79,7 @@ def main():
 
     #data parameters
     runPams = list()
-    '''
+
     replace = opt.replace
     minusMean = opt.minusMean
     xn = opt.xn
@@ -89,7 +89,7 @@ def main():
     minusMean = 0
     xn = 7
     normBias = 0
-
+    '''
     runPams.append(replace)
     runPams.append(minusMean)
     runPams.append(xn)

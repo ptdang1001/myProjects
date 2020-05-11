@@ -364,7 +364,7 @@ def getL1NormData(normalBias, minusMean, num, zn, xn, yn, totalRow, totalCol,
         else:
             r, c = int(xn / 2) + 1, int(yn / 2) + 1
             for j in range(1, i):
-                addNoiseRes = merge2Mtrx(blocks[j], addNoiseRes, r, c)
+                addNoiseRes = merge2Mtrx(blocks[j], addNoiseRes, r, c, 1)
                 r, c = r + int(xn / 2) + 1, c + int(yn / 2) + 1
             labels_datas.append([label, addNoiseRes.clone()])
     return (labels_datas)

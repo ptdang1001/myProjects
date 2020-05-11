@@ -2,8 +2,8 @@
 
 #SBATCH -J pred
 #SBATCH -p dl
-#SBATCH -o log/overlap/res/testL1_%j.csv
-#SBATCH -e log/overlap/err/testL1_%j.err
+#SBATCH -o /N/slate/pdang/myProjectsDataRes/20200113Predicte/results/l1NormTest/noverlap/res/testMain_%j.csv
+#SBATCH -e /N/slate/pdang/myProjectsDataRes/20200113Predicte/results/l1NormTest/noverlap/err/testMain_%j.err
 #SBATCH --mail-type=ALL
 #SBATCH --mail-user=pdang@iu.edu
 #SBATCH --nodes=1
