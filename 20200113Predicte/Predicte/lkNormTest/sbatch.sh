@@ -1,18 +1,9 @@
 #!/bin/bash
 
-resPath="/N/slate/pdang/myProjectsDataRes/20200113Predicte/results/lkNormTest/noverlap/res"
-errPath="/N/slate/pdang/myProjectsDataRes/20200113Predicte/results/lkNormTest/noverlap/err"
-if [ ! -d ${resPath} ]; then
-  mkdir -p ${resPath}
-fi
-if [ ! -d ${errPath} ]; then
-  mkdir -p ${errPath}
-fi
-
 #SBATCH -J pred
 #SBATCH -p dl
-#SBATCH -o ${resPath}/testMain_%j.csv
-#SBATCH -e ${errPath}/testMain_%j.err
+#SBATCH -o /N/slate/pdang/myProjectsDataRes/20200113Predicte/results/lkNormTest/noverlap/res/testMain_%j.csv
+#SBATCH -e /N/slate/pdang/myProjectsDataRes/20200113Predicte/results/lkNormTest/noverlap/err/testMain_%j.err
 #SBATCH --mail-type=ALL
 #SBATCH --mail-user=pdang@iu.edu
 #SBATCH --nodes=1
