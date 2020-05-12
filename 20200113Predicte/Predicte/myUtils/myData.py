@@ -129,7 +129,7 @@ def get3dMap(probType, totalRow, totalCol, datas):
 
 
 # sparse ssvd
-def ssvd(x, r=1):
+def ssvd(x, r=2):
     x = np.array(x)
     sptop = svds(x, k=r)
     sptoptmp = np.zeros((sptop[0].shape[1], sptop[2].shape[0]))
@@ -325,22 +325,21 @@ def getL1MeanData(mean,
     return (noiseMean, labels_datas)
 
 
-#  get l1 normal blocks data background noise is gaussian noise
-def getL1NormData(normalBias, minusMean, num, zn, xn, yn, totalRow, totalCol,
-                  overlap, replace):
+#  get lk normal blocks data background noise is gaussian noise
+def getLkNormData(lk, normalBias, minusMean, num, zn, xn, yn, totalRow,
+                  totalCol, overlap, replace):
     blocksNum = num * zn
     blocks = list()
     if minusMean == 0:
         blocks = [
-            torch.matmul(torch.randn(xn, 1), torch.randn(1, xn)) + normalBias
+            torch.matmul(torch.randn(xn, lk), torch.randn(lk, xn)) + normalBias
             for _ in range(blocksNum)
         ]
     else:
         for _ in range(blocksNum):
-            block = torch.matmul(torch.randn(xn, 1), torch.randn(1, xn))
+            block = torch.matmul(torch.randn(xn, lk), torch.randn(lk, xn))
             block = block - torch.mean(block) + normalBias
             blocks.append(block)
-
     blocks = torch.stack(blocks).view(num, zn, xn, yn)
     # gaussian noise parameters
     gaussianNoise = torch.randn(zn, totalRow, totalCol)
@@ -438,57 +437,3 @@ def separateData(labels, datas, sep):
     testData = torch.stack(testData, 0)
     testLabel = torch.stack(testLabel, 0)
     return (trainData, trainLabel, testData, testLabel)
-
-
-# tmp
-
-
-def addPatternNoise(data, over=False):
-    gaussianNoise = (torch.randn_like(data).abs()) * 100
-    if over == False:
-        return (data + gaussianNoise)
-    else:
-        return ()
-
-
-def padding(inputData, l, r, u, d):
-    padding = nn.ZeroPad2d(padding=(l, r, u, d))
-    return (padding(inputData))
-
-
-def addNumNoise(data, label, num):
-    z = data.size()[1]
-    x = data.size()[2]
-    y = data.size()[3]
-    noiseData = (torch.randn(num, z, x, y).abs() * 100)
-    noiseLabel = torch.tensor([
-        0.0,
-    ] * num).long()
-    data = torch.cat((data, noiseData), 0)
-    label = torch.cat((label, noiseLabel), 0)
-    return (data, label)
-
-
-def getRandomRowColNumber(low=0, hight=49, row=2, col=7, number=10):
-    allRowColIndexList = list()
-    for i in range(number):
-        oneRowIndexList = torch.tensor(
-            np.sort(np.random.choice(range(low, hight), col, replace=False)))
-        oneColIndexList = torch.tensor(
-            np.sort(np.random.choice(range(low, hight), col, replace=False)))
-        oneRowColIndexList = torch.stack((oneRowIndexList, oneColIndexList),
-                                         dim=0)
-        allRowColIndexList.append(oneRowColIndexList)
-    return (torch.stack(allRowColIndexList, dim=0))
-
-
-def getRowColMaxPoolingFeatures(onePartition, allRowColIndex, filterTypes):
-    samples = getOnePartitionSamples(onePartition, allRowColIndex)
-    filterTypeNum, filters = getFilters(filterTypes)
-    rowFeatureMap, colFeatureMap = getSamplesRowColFeatureMaps(
-        samples, filters)
-    oneFeatureMap = torch.cat((getMaxPoolingMap(filterTypeNum, rowFeatureMap),
-                               getMaxPoolingMap(filterTypeNum, colFeatureMap)),
-                              0)
-    oneFeatureMap = oneFeatureMap.permute(2, 1, 0)
-    return (oneFeatureMap)

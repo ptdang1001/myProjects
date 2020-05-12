@@ -4,6 +4,7 @@
 import sys
 import argparse
 import os
+import platform
 
 # third part libs
 import numpy as np
@@ -13,7 +14,11 @@ from torch.autograd import Variable
 from torch.utils.data import Dataset, DataLoader
 
 # my libs
-path = os.path.abspath("./Predicte")
+path = ""
+if platform.system() == "Windows":
+    path = os.path.abspath("./Predicte")  #windos system
+else:
+    path = os.path.abspath("..")  #linux system
 sys.path.append(path)
 import myUtils.myData
 import myUtils.myEvaluation

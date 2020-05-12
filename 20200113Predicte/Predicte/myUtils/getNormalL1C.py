@@ -3,13 +3,18 @@
 # system libs
 import os
 import sys
+import platform
 
 # 3rd libs
 import torch
 import numpy as np
 
 # my libs
-path = os.path.abspath("./Predicte")
+path = ""
+if platform.system() == "Windows":
+    path = os.path.abspath("./Predicte")  #windos system
+else:
+    path = os.path.abspath("..")  #linux system
 sys.path.append(path)
 import myUtils.myData
 

@@ -26,7 +26,7 @@ def main(runPams):
     minusMean = runPams[1]
     xn = runPams[2]
     normBias = runPams[3]
-    lk = 1
+    lk = 2
     zn = 1000
     yn = xn
     num = 3
@@ -50,13 +50,12 @@ def main(runPams):
     datas = torch.stack(datas)
     #print(datas[0])
 
-    # print(datas[100])
-
     ssvdDatas = list(map(myUtils.myData.ssvd, datas))
     ssvdDatas = torch.stack(ssvdDatas).float()
 
     # get 3d map
     mapData = myUtils.myData.get3dMap(probType, totalRow, totalCol, datas)
+
     _, mapData = myUtils.myData.addNumGaussianNoise(mapData, labels,
                                                     int(mapData.size()[0] / 3))
     # add noise to labels, datas
@@ -68,8 +67,8 @@ def main(runPams):
     ssvdDatas = ssvdDatas.view(zn * num, 1, totalRow, totalCol)
     _, ssvdDatas = myUtils.myData.addNumGaussianNoise(
         ssvdDatas, labels, int(ssvdDatas.size()[0] / 3))
-    #[print(labels[i], datas[i]) for i in range(len(labels))]
     '''
+    [print(labels[i], datas[i]) for i in range(len(labels))]
     print(mapData.size())
     print(ssvdDatas.size())
     print(datas.size())
@@ -79,5 +78,5 @@ def main(runPams):
 
 
 if __name__ == "__main__":
-    runPams = [0, 0, 5, 0]
+    runPams = [0, 0, 7, 0]
     main(runPams)

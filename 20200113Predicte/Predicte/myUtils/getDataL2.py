@@ -4,6 +4,7 @@
 import os
 import sys
 import time
+import platform
 
 # 3rd libs
 import torch
@@ -11,9 +12,10 @@ import numpy as np
 from itertools import permutations
 
 # my libs
-sys.path.append(
-    "/N/u/pdang/Carbonate/projects/20200113Predicte/Predicte"
-)
+if platform.system() == "Windows":
+    path = os.path.abspath("./Predicte")  #windos system
+else:
+    path = os.path.abspath("..")  #linux system
 import myData
 
 
@@ -27,23 +29,22 @@ def get3dMap(totalRow, totalCol, noiseMean, noiseMbias, noiseStdbias, labels,
 
     baseTypeNum, basesMtrx = myData.getBasesMtrxs(l1Bases)
     randomRowColIdx = myData.getRandomRowColIdx(low=0,
-                                                        hight=totalCol - 1,
-                                                        row=2,
-                                                        col=len(b1),
-                                                        number=500)
+                                                hight=totalCol - 1,
+                                                row=2,
+                                                col=len(b1),
+                                                number=500)
 
     # mtx2map entity
-    mtx2map = myData.Mtrx23dMap(baseTypeNum, basesMtrx, totalRow,
-                                        totalCol, randomRowColIdx)
+    mtx2map = myData.Mtrx23dMap(baseTypeNum, basesMtrx, totalRow, totalCol,
+                                randomRowColIdx)
 
     mapDatas = list(map(mtx2map.main, datas))
     mapDatas = torch.stack(mapDatas, 0)
 
     # add noise to mapDatas
     _, mapDatas = myData.addNumMeanNoise(mapDatas, labels,
-                                                 int(mapDatas.size()[0] / 3),
-                                                 noiseMean, noiseMbias,
-                                                 noiseStdbias)
+                                         int(mapDatas.size()[0] / 3),
+                                         noiseMean, noiseMbias, noiseStdbias)
     return (mapDatas)
 
 
@@ -60,23 +61,13 @@ def main(npms):
     num = 3
     totalRow = 50
     totalCol = totalRow
-    overlap=1
+    overlap = 1
 
     # partitions
-    noiseMean, labels_datas = myData.getL1MeanData(
-        mean,
-        stdBias,
-        noiseNorm,
-        noiseMbias,
-        noiseStdbias,
-        num,
-        zn,
-        xn,
-        yn,
-        totalRow,
-        totalCol,
-        overlap
-    )
+    noiseMean, labels_datas = myData.getL1MeanData(mean, stdBias, noiseNorm,
+                                                   noiseMbias, noiseStdbias,
+                                                   num, zn, xn, yn, totalRow,
+                                                   totalCol, overlap)
     #print(noiseMean - noiseMbias, noiseMean)
     labels = torch.cat(
         [torch.tensor([labels_datas[i][0]] * zn).long() for i in range(num)],
@@ -99,16 +90,14 @@ def main(npms):
     # add noise to labels, datas
     datas = datas.view(zn * num, 1, totalRow, totalCol)
     labels, datas = myData.addNumMeanNoise(datas, labels,
-                                                   int(datas.size()[0] / 3),
-                                                   noiseMean, noiseMbias,
-                                                   noiseStdbias)
+                                           int(datas.size()[0] / 3), noiseMean,
+                                           noiseMbias, noiseStdbias)
 
     # add noise to ssvddatas ,labels
     ssvdDatas = ssvdDatas.view(zn * num, 1, totalRow, totalCol)
     _, ssvdDatas = myData.addNumMeanNoise(ssvdDatas, labels,
-                                                  int(ssvdDatas.size()[0] / 3),
-                                                  mean, noiseMbias,
-                                                  noiseStdbias)
+                                          int(ssvdDatas.size()[0] / 3), mean,
+                                          noiseMbias, noiseStdbias)
     '''
     labelsArr = np.array(labels)
     datasArr = np.array(datas)
