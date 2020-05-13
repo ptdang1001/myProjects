@@ -69,7 +69,7 @@ class Mtrx23dMap():
             if i < len(self.baseTypeNum) - 1
         ]
 
-        finalMap = torch.cat(finalMap, 2)  # 1000x7x3
+        finalMap = torch.cat(finalMap, 2)  # 1000x7xlen(bases)
         return (finalMap)
 
     def getSamples(self, partition):
@@ -129,7 +129,7 @@ def get3dMap(probType, totalRow, totalCol, datas):
 
 
 # sparse ssvd
-def ssvd(x, r=2):
+def ssvd(x, r=1):
     x = np.array(x)
     sptop = svds(x, k=r)
     sptoptmp = np.zeros((sptop[0].shape[1], sptop[2].shape[0]))
@@ -239,8 +239,8 @@ def getL1CMeanData(mean,
 
 
 # get l1c normal blocks data
-def getL1CNormalData(normalBias, minusMean, num, zn, xn, yn, totalRow,
-                     totalCol, overlap):
+def getL1CNormData(normalBias, minusMean, num, zn, xn, yn, totalRow, totalCol,
+                   overlap, replace):
     # noise parameters
     gaussianNoise = torch.randn(zn, totalRow, totalCol)
     gaussianNoise = gaussianNoise - torch.mean(gaussianNoise)
@@ -258,20 +258,20 @@ def getL1CNormalData(normalBias, minusMean, num, zn, xn, yn, totalRow,
                 block = block - torch.mean(block) + normalBias
                 blocks.append(block)
 
-        addNoiseRes = merge2Mtrx(blocks[0], gaussianNoise, 0, 0)
+        addNoiseRes = merge2Mtrx(blocks[0], gaussianNoise, 0, 0, replace)
         if i == 1:
             labels_datas.append([label, addNoiseRes.clone()])
             continue
         if overlap == 0:
             r, c = xn, yn
             for j in range(1, i):
-                addNoiseRes = merge2Mtrx(blocks[j], addNoiseRes, r, c)
+                addNoiseRes = merge2Mtrx(blocks[j], addNoiseRes, r, c, replace)
                 r, c = r + xn, c + yn
             labels_datas.append([label, addNoiseRes.clone()])
         else:
             r, c = int(xn / 2) + 1, int(yn / 2) + 1
             for j in range(1, i):
-                addNoiseRes = merge2Mtrx(blocks[j], addNoiseRes, r, c)
+                addNoiseRes = merge2Mtrx(blocks[j], addNoiseRes, r, c, 1)
                 r, c = r + int(xn / 2) + 1, c + int(yn / 2) + 1
             labels_datas.append([label, addNoiseRes.clone()])
     return (labels_datas)
