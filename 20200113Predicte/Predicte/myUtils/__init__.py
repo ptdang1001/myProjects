@@ -1,1 +1,1 @@
-from . import myData
+from . import *
