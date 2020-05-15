@@ -55,14 +55,18 @@ def main():
     minusMean = opt.minusMean
     xn = opt.xn
     '''
+    blockNum=1
     minusMean = 0
-    xn = 30
-    baseSize = 7
+    xn = 25
+    baseNum=50
+    baseLen = 7
+    runPams.append(blockNum)
     runPams.append(minusMean)
     runPams.append(xn)
+    runPams.append(baseNum)
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     # samples networks
-    sfcn = myModules.FCN(size=baseSize)
+    sfcn = myModules.FCN(size=baseLen)
     sfcn = sfcn.to(device)
     soptimizer = torch.optim.Adam(sfcn.parameters(), lr=opt.lr)
     slossFunc = nn.CrossEntropyLoss()
@@ -106,11 +110,12 @@ def main():
 
     res = list()
     if minusMean == 1:
-        res.append("X-E")
+        res.append("c*r-E")
     else:
-        res.append("X")
+        res.append("c*r")
     res.append(xn)
-    res.append(baseSize)
+    res.append(baseLen)
+    res.append(baseNum)
     res.append("N(01)-E")
     res.append(sres)
     res.append(bres)

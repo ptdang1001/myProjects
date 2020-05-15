@@ -97,7 +97,7 @@ class Mtrx23dMap():
         return (featureMap)
 
 
-def getSamplesFeature(probType, partitions, totalRow, totalCol, basesNum):
+def getSamplesFeature(probType, partitions, totalRow, totalCol, baseNum):
     # l1 bases
     bases = list()
     if probType == "l1c":
@@ -131,7 +131,7 @@ def getSamplesFeature(probType, partitions, totalRow, totalCol, basesNum):
     baseFeature = mtx2map.getBaseMapNoMaxPooling(samples)
 
     # get hight inconsistency score base mtrx
-    inconBasesMtrx = getInconsistencyBasesMtrxs(basesMtrx, basesNum)
+    inconBasesMtrx = getInconsistencyBasesMtrxs(basesMtrx, baseNum)
     inconMtx2Map = Mtrx23dMap(baseTypeNum, inconBasesMtrx, totalRow, totalCol, randomRowColIdx)
     inconSamples = list(map(inconMtx2Map.getSamples, partitions))
     inconSamples = torch.cat(inconSamples, 0)
