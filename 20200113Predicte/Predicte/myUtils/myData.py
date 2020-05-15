@@ -110,7 +110,7 @@ def getSamplesFeature(probType, partitions, totalRow, totalCol, threshold, baseT
         b2 = [1, 1, -1, -1, 0, 0, 0]
         b3 = [1, -1, 0, 0, 0, 0, 0]
         bases = [b1, b2, b3]
-    else:
+    elif probType == "lall":
         b1 = [1, 1, 1, 1, 1, 1, 0]
         b2 = [1, 1, 1, 1, 0, 0, 0]
         b3 = [1, 1, 0, 0, 0, 0, 0]
@@ -118,6 +118,12 @@ def getSamplesFeature(probType, partitions, totalRow, totalCol, threshold, baseT
         b5 = [1, 1, -1, -1, 0, 0, 0]
         b6 = [1, -1, 0, 0, 0, 0, 0]
         bases = [b1, b2, b3, b4, b5, b6]
+    else:
+        base1 = [1, 1, 1, -1, -1, -1, 0]
+        base2 = [1, 1, -1, -1, 0, 0, 0, ]
+        base3 = [1, -1, 0, 0, 0, 0, 0]
+        base4 = [2, 1, 1, -1, -1, -2, 0]
+        bases = [base1, base2, base3, base4]
     baseTypeNum, basesMtrx = getBasesMtrxs(bases)
     randomRowColIdx = getRandomRowColIdx(low=0,
                                          hight=totalCol - 1,
@@ -153,7 +159,7 @@ def getSamplesLabels(samples):
     labels = torch.tensor(labels)
     gaussianNoise = torch.randn_like(samples)
     gaussianNoise = gaussianNoise - torch.mean(gaussianNoise)
-    #gaussianNoise = torch.zeros_like(samples)
+    # gaussianNoise = torch.zeros_like(samples)
     samples = samples + gaussianNoise
     return (labels, samples)
 
@@ -171,7 +177,7 @@ def get3dMap(probType, totalRow, totalCol, datas):
         b2 = [1, 1, -1, -1, 0, 0, 0]
         b3 = [1, -1, 0, 0, 0, 0, 0]
         bases = [b1, b2, b3]
-    else:
+    elif probType == "lall":
         b1 = [1, 1, 1, 1, 1, 1, 0]
         b2 = [1, 1, 1, 1, 0, 0, 0]
         b3 = [1, 1, 0, 0, 0, 0, 0]
@@ -179,7 +185,12 @@ def get3dMap(probType, totalRow, totalCol, datas):
         b5 = [1, 1, -1, -1, 0, 0, 0]
         b6 = [1, -1, 0, 0, 0, 0, 0]
         bases = [b1, b2, b3, b4, b5, b6]
-    baseTypeNum, basesMtrx = getBasesMtrxs(bases)
+    else:
+        base1 = [1, 1, 1, -1, -1, -1, 0]
+        base2 = [1, 1, -1, -1, 0, 0, 0, ]
+        base3 = [1, -1, 0, 0, 0, 0, 0]
+        base4 = [2, 1, 1, -1, -1, -2, 0]
+        bases = [base1, base2, base3, base4]
     randomRowColIdx = getRandomRowColIdx(low=0,
                                          hight=totalCol - 1,
                                          row=2,
@@ -227,7 +238,6 @@ def getInconsistencyBasesMtrxs(basesMtrx, threshold):
     rowNum = inconBasesMtrx.size()[0]
     colNum = inconBasesMtrx.size()[1]
     ind = list()
-    scores = list()
     for i1 in range(rowNum - 1):
         if i1 in ind:
             continue
@@ -241,7 +251,6 @@ def getInconsistencyBasesMtrxs(basesMtrx, threshold):
                 else:
                     score = score - 1
             if score <= threshold:
-                scores.append(score)
                 ind.append(i2)
     ind.insert(-1, 0)
     inconBasesMtrx = inconBasesMtrx[ind, :]
@@ -432,6 +441,61 @@ def getLkNormData(lk, normalBias, minusMean, num, zn, xn, yn, totalRow,
     else:
         for _ in range(blocksNum):
             block = torch.matmul(torch.randn(xn, lk), torch.randn(lk, xn))
+            block = block - torch.mean(block) + normalBias
+            blocks.append(block)
+    blocks = torch.stack(blocks).view(num, zn, xn, yn)
+    # gaussian noise parameters
+    gaussianNoise = torch.randn(zn, totalRow, totalCol)
+    gaussianNoise = gaussianNoise - torch.mean(gaussianNoise)
+    gaussianNoise = torch.zeros(zn, totalRow, totalCol)  # zero background noise
+
+    labels_datas = list()
+    for i in range(1, num + 1):
+        label = i
+        addNoiseRes = merge2Mtrx(blocks[0], gaussianNoise, 0, 0, replace)
+        if i == 1:
+            labels_datas.append([label, addNoiseRes.clone()])
+            continue
+        if overlap == 0:
+            r, c = xn, yn
+            for j in range(1, i):
+                addNoiseRes = merge2Mtrx(blocks[j], addNoiseRes, r, c, replace)
+                r, c = r + xn, c + yn
+            labels_datas.append([label, addNoiseRes.clone()])
+
+        else:
+            r, c = int(xn / 2) + 1, int(yn / 2) + 1
+            for j in range(1, i):
+                addNoiseRes = merge2Mtrx(blocks[j], addNoiseRes, r, c, 1)
+                r, c = r + int(xn / 2) + 1, c + int(yn / 2) + 1
+            labels_datas.append([label, addNoiseRes.clone()])
+    return (labels_datas)
+
+
+#  get l1 base blocks data background noise is gaussian noise
+def getL1BaseData(normalBias, minusMean, num, zn, xn, yn, totalRow,
+                  totalCol, overlap, replace):
+    blocksNum = num * zn * 16
+    base1 = [1, 1, 1, -1, -1, -1, 0]
+    base2 = [1, 1, -1, -1, 0, 0, 0, ]
+    base3 = [1, -1, 0, 0, 0, 0, 0]
+    base4 = [2, 1, 1, -1, -1, -2, 0]
+    bases = [base1, base2, base3, base4]
+    _, basesMtrx = getBasesMtrxs(bases)
+    rowIdx = np.random.randint(low=0, high=basesMtrx.size()[1], size=blocksNum)
+    colIdx = np.random.randint(low=0, high=basesMtrx.size()[1], size=blocksNum)
+    basesMtrx = basesMtrx.t()
+    blocks = list()
+    if minusMean == 0:
+        blocks = [
+            torch.matmul(basesMtrx[rowIdx[k]].view(len(basesMtrx[rowIdx[k]]), 1),
+                         basesMtrx[colIdx[k]].view(1, len(basesMtrx[colIdx[k]]))) + normalBias
+            for k in range(blocksNum)
+        ]
+    else:
+        for k in range(blocksNum):
+            block = torch.matmul(basesMtrx[rowIdx[k]].view(len(basesMtrx[rowIdx[k]]), 1),
+                                 basesMtrx[colIdx[k]].view(1, len(basesMtrx[colIdx[k]]))) + normalBias
             block = block - torch.mean(block) + normalBias
             blocks.append(block)
     blocks = torch.stack(blocks).view(num, zn, xn, yn)

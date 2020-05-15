@@ -16,7 +16,7 @@ import myModules
 import myUtils.myData
 import myUtils.myTrainTest
 # import myUtils.myDraw
-import myUtils.getBaseL1
+import myUtils.getSpeBaseL1
 
 # parameters
 parser = argparse.ArgumentParser()
@@ -37,10 +37,7 @@ parser.add_argument(
     type=int,
     default=os.cpu_count(),
     help="number of cpu threads to use during batch generation")
-parser.add_argument("--n_print",
-                    type=int,
-                    default=200,
-                    help="how many times training print one result")
+
 parser.add_argument("--replace", type=int, help="data+noise or data>noise")
 parser.add_argument("--minusMean", type=int, help="if minus mean")
 parser.add_argument("--normBias", type=int, help="data plus bias")
@@ -52,33 +49,34 @@ opt = parser.parse_args()
 def main():
     # data parameters
     runPams = list()
-    '''
+
     minusMean = opt.minusMean
     normBias=opt.normBias
     baseNumThreshold=opt.baseNumThreshold
     '''
     minusMean = 0
     normBias = 0
-    baseNumThreshold = 10
-
-    xn = 25
+    baseNumThreshold = 100
+    '''
+    xn = 28
     baseLen = 7
     blockNum=1
     runPams.append(blockNum)
     runPams.append(minusMean)
     runPams.append(normBias)
     runPams.append(baseNumThreshold)
+    runPams.append(xn)
     # l1 bases
 
-    olabel, samples, baseFeatures, inconBaseFeatures = myUtils.getBaseL1.main(runPams)
-
+    olabel, samples, baseFeatures, inconBaseFeatures = myUtils.getSpeBaseL1.main(runPams)
+    '''
     #[print(olabel[i], samples[i]) for i in range(len(olabel))]
     print(inconBaseFeatures.size())
     print(baseFeatures.size())
     print(samples.size())
     print(olabel.size())
     sys.exit()
-
+    '''
     # networks
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     # samples networks
@@ -122,9 +120,9 @@ def main():
 
     res = list()
     if minusMean == 1:
-        res.append("c*r-E")
+        res.append("6c*r-E")
     else:
-        res.append("c*r")
+        res.append("6c*r")
     res.append("X+" + str(normBias))
     res.append(xn)
     res.append(baseLen)

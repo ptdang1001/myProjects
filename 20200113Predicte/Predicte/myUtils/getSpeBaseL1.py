@@ -19,23 +19,22 @@ def main(runPams):
     minusMean = runPams[1]
     normBias = runPams[2]
     baseNumThreshold = runPams[3]
-    xn = 25
+    xn = runPams[4]
     inconThreshold = -7
     replace = 0
-    lk = 1
     zn = 6
     yn = xn
-    totalRow = 50
+    totalRow = 56
     totalCol = totalRow
     overlap = 0
-    probType = "l1"
+    probType = "l1Spe"
 
     # partitions
-    labels_datas = myUtils.myData.getLkNormData(lk, normBias, minusMean, blockNum, zn,
+    labels_datas = myUtils.myData.getL1BaseData(normBias, minusMean, blockNum, zn,
                                                 xn, yn, totalRow, totalCol, overlap,
                                                 replace)
     datas = labels_datas[-1][-1]
-    # [print(labels[i], datas[i]) for i in range(len(labels))]
+    #[print(labels[i], datas[i]) for i in range(len(labels))]
     # sys.exit()
     # get samples
     samples, baseFeature, inconBaseFeature = myUtils.myData.getSamplesFeature(probType, datas, totalRow, totalCol,
@@ -51,16 +50,8 @@ def main(runPams):
     labels, samples = myUtils.myData.addNumGaussianNoise(samples, labels, int(len(samples) / 3))
     _, baseFeature = myUtils.myData.addNumGaussianNoise(baseFeature, labels, int(len(baseFeature) / 3))
     _, inconBaseFeature = myUtils.myData.addNumGaussianNoise(inconBaseFeature, labels, int(len(inconBaseFeature) / 3))
-    # [print(labels[i],samples[i]) for i in range(len(samples))]
-    '''
-    print(inconBaseFeature.size())
-    print(baseFeature.size())
-    print(samples.size())
-    print(labels.size())
-    '''
     return (labels, samples, baseFeature, inconBaseFeature)
 
 
 if __name__ == "__main__":
-    runPams = [1, 0, 50, 25]
-    main(runPams)
+    main()
