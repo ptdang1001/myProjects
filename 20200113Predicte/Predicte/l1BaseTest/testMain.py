@@ -54,7 +54,7 @@ def main():
     runPams = list()
     minusMean = opt.minusMean
     normBias=opt.normBias
-    baseThreshold=opt.baseThreshold
+    baseNumThreshold=opt.baseNumThreshold
     '''
     minusMean = 0
     normBias = 0
@@ -66,7 +66,7 @@ def main():
     runPams.append(blockNum)
     runPams.append(minusMean)
     runPams.append(normBias)
-    runPams.append(baseThreshold)
+    runPams.append(baseNumThreshold)
     # l1 bases
 
     olabel, samples, baseFeatures, inconBaseFeatures = myUtils.getBaseL1.main(runPams)
