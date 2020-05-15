@@ -97,7 +97,7 @@ class Mtrx23dMap():
         return (featureMap)
 
 
-def getSamplesFeature(probType, partitions, totalRow, totalCol, threshold):
+def getSamplesFeature(probType, partitions, totalRow, totalCol, threshold, baseThreshold):
     # l1 bases
     bases = list()
     if probType == "l1c":
@@ -132,8 +132,8 @@ def getSamplesFeature(probType, partitions, totalRow, totalCol, threshold):
 
     # get hight inconsistency score base mtrx
     inconBasesMtrx = getInconsistencyBasesMtrxs(basesMtrx, threshold)
-    while inconBasesMtrx.size()[1] > 31:
-        inconBasesMtrx = getInconsistencyBasesMtrxs(inconBasesMtrx,threshold)
+    while inconBasesMtrx.size()[1] > baseThreshold:
+        inconBasesMtrx = getInconsistencyBasesMtrxs(inconBasesMtrx, threshold)
     inconMtx2Map = Mtrx23dMap(baseTypeNum, inconBasesMtrx, totalRow, totalCol, randomRowColIdx)
     inconSamples = list(map(inconMtx2Map.getSamples, partitions))
     inconSamples = torch.cat(inconSamples, 0)
@@ -153,7 +153,7 @@ def getSamplesLabels(samples):
     labels = torch.tensor(labels)
     gaussianNoise = torch.randn_like(samples)
     gaussianNoise = gaussianNoise - torch.mean(gaussianNoise)
-    # gaussianNoise = torch.zeros_like(samples)
+    #gaussianNoise = torch.zeros_like(samples)
     samples = samples + gaussianNoise
     return (labels, samples)
 
@@ -226,9 +226,9 @@ def getInconsistencyBasesMtrxs(basesMtrx, threshold):
     inconBasesMtrx = basesMtrx.t().clone()
     rowNum = inconBasesMtrx.size()[0]
     colNum = inconBasesMtrx.size()[1]
-    ind=list()
-    scores=list()
-    for i1 in range(rowNum-1):
+    ind = list()
+    scores = list()
+    for i1 in range(rowNum - 1):
         if i1 in ind:
             continue
         for i2 in range(i1 + 1, rowNum):
@@ -243,8 +243,8 @@ def getInconsistencyBasesMtrxs(basesMtrx, threshold):
             if score <= threshold:
                 scores.append(score)
                 ind.append(i2)
-    ind.insert(0,0)
-    inconBasesMtrx=inconBasesMtrx[ind,:]
+    ind.insert(-1, 0)
+    inconBasesMtrx = inconBasesMtrx[ind, :]
     inconBasesMtrx = inconBasesMtrx.t()
     return (inconBasesMtrx)
 
@@ -531,3 +531,9 @@ def separateData(labels, datas, sep):
     testData = torch.stack(testData)
     testLabel = torch.stack(testLabel)
     return (trainData, trainLabel, testData, testLabel)
+
+
+def getCNNOutSize(inDim, layerNum, kernelSize):
+    for i in range(layerNum - 1):
+        inDim = int((inDim - (kernelSize - 1)) / 2)
+    return (inDim)

@@ -1,15 +1,15 @@
 #!/bin/bash
 
-#SBATCH -J pred
+#SBATCH -J L1Base
 #SBATCH -p dl
-#SBATCH -o /N/slate/pdang/myProjectsDataRes/20200113Predicte/results/l1NormTest/noverlap/res/testMain_%j.csv
-#SBATCH -e /N/slate/pdang/myProjectsDataRes/20200113Predicte/results/l1NormTest/noverlap/err/testMain_%j.err
+#SBATCH -o /N/project/zhangclab/pengtao/myProjectsDataRes/20200113Predicte/results/l1BaseTest/noverlap/res/testMain_%j.csv
+#SBATCH -e /N/project/zhangclab/pengtao/myProjectsDataRes/20200113Predicte/results/l1BaseTest/noverlap/err/testMain_%j.err
 #SBATCH --mail-type=ALL
 #SBATCH --mail-user=pdang@iu.edu
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=24
 #SBATCH --gres=gpu:p100:1
-#SBATCH --time=00:10:00
+#SBATCH --time=00:20:00
 
 #module load
-python testMain.py --replace $1 --minusMean $2 --xn $3 --normBias $4
+python testMain.py --minusMean $1 --normBias $2 --baseNumThreshold $3

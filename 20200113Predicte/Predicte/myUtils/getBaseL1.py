@@ -15,14 +15,15 @@ import myUtils.myData
 
 def main(runPams):
     # parameters
-    blockNum = runPams[0]
-    minusMean =0
+    blockNum=runPams[0]
+    minusMean =runPams[1]
+    normBias = runPams[2]
+    baseNumThreshold=runPams[3]
     xn = 25
-    threshold = runPams[1]
-    normBias = 0
+    inconThreshold = -7
     replace = 0
     lk = 1
-    zn = 1
+    zn = 6
     yn = xn
     totalRow = 50
     totalCol = totalRow
@@ -34,14 +35,13 @@ def main(runPams):
                                                 xn, yn, totalRow, totalCol, overlap,
                                                 replace)
     datas = torch.cat([labels_datas[i][1] for i in range(blockNum)])
-    datas = datas[-1].view(1, totalRow, totalCol)
+    #datas = datas[-1].view(1, totalRow, totalCol)
     # print(datas.size())
-    # sys.exit()
     # [print(labels[i], datas[i]) for i in range(len(labels))]
     # sys.exit()
     # get samples
     samples, baseFeature, inconBaseFeature = myUtils.myData.getSamplesFeature(probType, datas, totalRow, totalCol,
-                                                                              threshold)
+                                                                              inconThreshold,baseNumThreshold)
     labels, samples = myUtils.myData.getSamplesLabels(samples)
     # [print(labels[i],samples[i]) for i in range(len(samples))]
     # sys.exit()
@@ -54,12 +54,12 @@ def main(runPams):
     _, baseFeature = myUtils.myData.addNumGaussianNoise(baseFeature, labels, int(len(baseFeature) / 3))
     _, inconBaseFeature = myUtils.myData.addNumGaussianNoise(inconBaseFeature, labels, int(len(inconBaseFeature) / 3))
     # [print(labels[i],samples[i]) for i in range(len(samples))]
-
+    '''
     print(inconBaseFeature.size())
     print(baseFeature.size())
     print(samples.size())
     print(labels.size())
-
+    '''
     return (labels, samples, baseFeature, inconBaseFeature)
 
 
