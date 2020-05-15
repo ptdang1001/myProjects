@@ -97,7 +97,7 @@ class Mtrx23dMap():
         return (featureMap)
 
 
-def getSamplesFeature(probType, partitions, totalRow, totalCol, baseNum):
+def getSamplesFeature(probType, partitions, totalRow, totalCol, threshold):
     # l1 bases
     bases = list()
     if probType == "l1c":
@@ -131,7 +131,9 @@ def getSamplesFeature(probType, partitions, totalRow, totalCol, baseNum):
     baseFeature = mtx2map.getBaseMapNoMaxPooling(samples)
 
     # get hight inconsistency score base mtrx
-    inconBasesMtrx = getInconsistencyBasesMtrxs(basesMtrx, baseNum)
+    inconBasesMtrx = getInconsistencyBasesMtrxs(basesMtrx, threshold)
+    while inconBasesMtrx.size()[1] > 31:
+        inconBasesMtrx = getInconsistencyBasesMtrxs(inconBasesMtrx,threshold)
     inconMtx2Map = Mtrx23dMap(baseTypeNum, inconBasesMtrx, totalRow, totalCol, randomRowColIdx)
     inconSamples = list(map(inconMtx2Map.getSamples, partitions))
     inconSamples = torch.cat(inconSamples, 0)
@@ -220,15 +222,30 @@ def getBasesMtrxs(bases):
     return (baseTypeNum, basesMtrx)
 
 
-def getInconsistencyBasesMtrxs(basesMtrx, basesNum):
-    basesInconsistency = torch.matmul(basesMtrx.t(), basesMtrx)
-    basesInconsistency = torch.triu(basesInconsistency, diagonal=1)
-    basesInconsistency = torch.sum(basesInconsistency, 0)
-    ind = np.argpartition(basesInconsistency.numpy().ravel(), basesNum)[:basesNum]
-    i2d = np.unravel_index(ind, basesInconsistency.shape)
-    ind = np.unique(i2d)
-    inconBasesMtrx = basesMtrx[:, ind]
-    inconBasesMtrx = torch.tensor(inconBasesMtrx)
+def getInconsistencyBasesMtrxs(basesMtrx, threshold):
+    inconBasesMtrx = basesMtrx.t().clone()
+    rowNum = inconBasesMtrx.size()[0]
+    colNum = inconBasesMtrx.size()[1]
+    ind=list()
+    scores=list()
+    for i1 in range(rowNum-1):
+        if i1 in ind:
+            continue
+        for i2 in range(i1 + 1, rowNum):
+            if i2 in ind:
+                continue
+            score = 0
+            for j in range(colNum):
+                if inconBasesMtrx[i1][j] == inconBasesMtrx[i2][j]:
+                    score = score + 1
+                else:
+                    score = score - 1
+            if score <= threshold:
+                scores.append(score)
+                ind.append(i2)
+    ind.insert(0,0)
+    inconBasesMtrx=inconBasesMtrx[ind,:]
+    inconBasesMtrx = inconBasesMtrx.t()
     return (inconBasesMtrx)
 
 

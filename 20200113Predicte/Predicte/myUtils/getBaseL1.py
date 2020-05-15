@@ -9,22 +9,21 @@ import platform
 import torch
 
 # my libs
-path = os.path.abspath('./Predicte')
-sys.path.append(path)
+
 import myUtils.myData
 
 
 def main(runPams):
     # parameters
-    minusMean = runPams[0]
-    xn = runPams[1]
-    baseNum=runPams[2]
+    blockNum = runPams[0]
+    minusMean =0
+    xn = 25
+    threshold = runPams[1]
     normBias = 0
     replace = 0
     lk = 1
     zn = 1
     yn = xn
-    blockNum = 2
     totalRow = 50
     totalCol = totalRow
     overlap = 0
@@ -35,13 +34,14 @@ def main(runPams):
                                                 xn, yn, totalRow, totalCol, overlap,
                                                 replace)
     datas = torch.cat([labels_datas[i][1] for i in range(blockNum)])
-    datas=datas[-1].view(1,totalRow,totalCol)
-    #print(datas.size())
-    #sys.exit()
+    datas = datas[-1].view(1, totalRow, totalCol)
+    # print(datas.size())
+    # sys.exit()
     # [print(labels[i], datas[i]) for i in range(len(labels))]
     # sys.exit()
     # get samples
-    samples, baseFeature, inconBaseFeature = myUtils.myData.getSamplesFeature(probType, datas, totalRow, totalCol, baseNum)
+    samples, baseFeature, inconBaseFeature = myUtils.myData.getSamplesFeature(probType, datas, totalRow, totalCol,
+                                                                              threshold)
     labels, samples = myUtils.myData.getSamplesLabels(samples)
     # [print(labels[i],samples[i]) for i in range(len(samples))]
     # sys.exit()
@@ -53,7 +53,7 @@ def main(runPams):
     labels, samples = myUtils.myData.addNumGaussianNoise(samples, labels, int(len(samples) / 3))
     _, baseFeature = myUtils.myData.addNumGaussianNoise(baseFeature, labels, int(len(baseFeature) / 3))
     _, inconBaseFeature = myUtils.myData.addNumGaussianNoise(inconBaseFeature, labels, int(len(inconBaseFeature) / 3))
-    #[print(labels[i],samples[i]) for i in range(len(samples))]
+    # [print(labels[i],samples[i]) for i in range(len(samples))]
 
     print(inconBaseFeature.size())
     print(baseFeature.size())
@@ -64,5 +64,5 @@ def main(runPams):
 
 
 if __name__ == "__main__":
-    runPams = [0, 25,50]
+    runPams = [1, 0, 50, 25]
     main(runPams)

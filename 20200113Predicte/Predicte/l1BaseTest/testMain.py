@@ -92,6 +92,8 @@ def main():
     # l1 bases
 
     olabel, samples, baseFeatures, inconBaseFeatures  = myUtils.getBaseL1.main(runPams)
+    print(inconBaseFeatures.size())
+    sys.exit()
     #[print(olabel[i], odata[i]) for i in range(12)]
 
 
