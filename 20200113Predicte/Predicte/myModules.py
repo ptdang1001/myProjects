@@ -13,12 +13,13 @@ class CNN(nn.Module):
         self.conv2 = nn.Conv2d(kernels, 16, kernelSize)
         self.fc1 = nn.Linear(outSize, 120)
         self.fc2 = nn.Linear(120, 84)
-        self.fc3 = nn.Linear(84, 4)
+        self.fc3 = nn.Linear(84, 50)
 
     def forward(self, x):
         x = self.pool(F.relu(self.conv1(x)))
         x = self.pool(F.relu(self.conv2(x)))
         #print(x.size())
+        #sys.exit()
         x = x.view(-1, x.size()[1] * x.size()[2] * x.size()[3])
         x = F.relu(self.fc1(x))
         x = F.relu(self.fc2(x))
@@ -67,16 +68,14 @@ class AutoEncoder(nn.Module):
 
 #Fully Connected Network
 class FCN(nn.Module):
-    def __init__(self, inChannels, kernels, kernelSize):
+    def __init__(self, size):
         super(FCN, self).__init__()
-        self.conv1 = nn.Conv2d(inChannels, kernels, kernelSize)
         #self.pool = nn.MaxPool2d(2, 2)
-        self.fc1 = nn.Linear(3 * 6 * 6, 120)
+        self.fc1 = nn.Linear(size*size, 120)
         self.fc2 = nn.Linear(120, 84)
         self.fc3 = nn.Linear(84, 50)
 
     def forward(self, x):
-        x = F.relu(self.conv1(x))
         x = x.view(-1, x.size()[1] * x.size()[2] * x.size()[3])
         x = F.relu(self.fc1(x))
         x = F.relu(self.fc2(x))

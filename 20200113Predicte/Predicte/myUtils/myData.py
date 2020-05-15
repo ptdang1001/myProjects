@@ -13,6 +13,7 @@ from itertools import permutations
 import itertools
 from scipy.sparse.linalg import svds, eigs
 
+
 # my libs
 
 
@@ -73,8 +74,8 @@ class Mtrx23dMap():
     def getBaseMapNoMaxPooling(self, samples):
         rowFeature = torch.matmul(samples, self.bases.float())
         colFeature = torch.matmul(samples.permute(0, 2, 1), self.bases.float())
-        baseFeature = torch.cat((rowFeature, colFeature), 0)  # 1000x7xm
-        baseFeature = baseFeature.permute(2, 1, 0)
+        baseFeature = torch.stack((rowFeature, colFeature), 1)  # 1000*2*7*m
+        # baseFeature = baseFeature.permute(0, 3, 2, 1)
         return (baseFeature)
 
     def getSamples(self, partition):
@@ -96,7 +97,7 @@ class Mtrx23dMap():
         return (featureMap)
 
 
-def getSamplesFeature(probType, partitions, totalRow, totalCol):
+def getSamplesFeature(probType, partitions, totalRow, totalCol, basesNum):
     # l1 bases
     bases = list()
     if probType == "l1c":
@@ -123,12 +124,19 @@ def getSamplesFeature(probType, partitions, totalRow, totalCol):
                                          row=2,
                                          col=len(bases[0]),
                                          number=500)
-    mtx2map = Mtrx23dMap(baseTypeNum, basesMtrx, totalRow, totalCol,
-                         randomRowColIdx)
+    # get all base mtrx
+    mtx2map = Mtrx23dMap(baseTypeNum, basesMtrx, totalRow, totalCol, randomRowColIdx)
     samples = list(map(mtx2map.getSamples, partitions))
     samples = torch.cat(samples, 0)
-    baseFeature = list(map(mtx2map.getBaseMapNoMaxPooling, samples))
-    return (samples, baseFeature)
+    baseFeature = mtx2map.getBaseMapNoMaxPooling(samples)
+
+    # get hight inconsistency score base mtrx
+    inconBasesMtrx = getInconsistencyBasesMtrxs(basesMtrx, basesNum)
+    inconMtx2Map = Mtrx23dMap(baseTypeNum, inconBasesMtrx, totalRow, totalCol, randomRowColIdx)
+    inconSamples = list(map(inconMtx2Map.getSamples, partitions))
+    inconSamples = torch.cat(inconSamples, 0)
+    inconBaseFeature = inconMtx2Map.getBaseMapNoMaxPooling(inconSamples)
+    return (samples, baseFeature, inconBaseFeature)
 
 
 def nonZeroNum(sample):
@@ -143,7 +151,7 @@ def getSamplesLabels(samples):
     labels = torch.tensor(labels)
     gaussianNoise = torch.randn_like(samples)
     gaussianNoise = gaussianNoise - torch.mean(gaussianNoise)
-    #gaussianNoise=torch.zeros_like(samples)
+    # gaussianNoise = torch.zeros_like(samples)
     samples = samples + gaussianNoise
     return (labels, samples)
 
@@ -212,6 +220,18 @@ def getBasesMtrxs(bases):
     return (baseTypeNum, basesMtrx)
 
 
+def getInconsistencyBasesMtrxs(basesMtrx, basesNum):
+    basesInconsistency = torch.matmul(basesMtrx.t(), basesMtrx)
+    basesInconsistency = torch.triu(basesInconsistency, diagonal=1)
+    basesInconsistency = torch.sum(basesInconsistency, 0)
+    ind = np.argpartition(basesInconsistency.numpy().ravel(), basesNum)[:basesNum]
+    i2d = np.unravel_index(ind, basesInconsistency.shape)
+    ind = np.unique(i2d)
+    inconBasesMtrx = basesMtrx[:, ind]
+    inconBasesMtrx = torch.tensor(inconBasesMtrx)
+    return (inconBasesMtrx)
+
+
 # transtorm 3 1x7 1d bases vectors to 1 7xm 2d matrix
 
 
@@ -238,10 +258,10 @@ def merge2Mtrx(smallMtrx, bigMtrx, r, c, replace=0):
     z = 0
     if replace == 0:
         bigMtrx[z:smallMtrx.shape[0], r:r + smallMtrx.shape[1], c:c +
-                smallMtrx.shape[2]] += smallMtrx
+                                                                  smallMtrx.shape[2]] += smallMtrx
     else:
         bigMtrx[z:smallMtrx.shape[0], r:r + smallMtrx.shape[1], c:c +
-                smallMtrx.shape[2]] = smallMtrx
+                                                                  smallMtrx.shape[2]] = smallMtrx
     return (bigMtrx)
 
 
@@ -401,8 +421,7 @@ def getLkNormData(lk, normalBias, minusMean, num, zn, xn, yn, totalRow,
     # gaussian noise parameters
     gaussianNoise = torch.randn(zn, totalRow, totalCol)
     gaussianNoise = gaussianNoise - torch.mean(gaussianNoise)
-    gaussianNoise = torch.zeros(zn, totalRow,
-                                totalCol)  # zero background noise
+    gaussianNoise = torch.zeros(zn, totalRow, totalCol)  # zero background noise
 
     labels_datas = list()
     for i in range(1, num + 1):
@@ -436,8 +455,8 @@ def addNumMeanNoise(data, label, num, mean, mbias, stdbias):
     mean = mean + mbias
     noiseData = torch.normal(mean, std)
     noiseLabel = torch.tensor([
-        0.0,
-    ] * num).long()
+                                  0.0,
+                              ] * num).long()
     data = torch.cat((data, noiseData), 0)
     label = torch.cat((label, noiseLabel), 0)
     return (label, data)
@@ -449,8 +468,8 @@ def addNumGaussianNoise(data, label, num):
     gaussianNoise = gaussianNoise[0:num]
     gaussianNoise = gaussianNoise - torch.mean(gaussianNoise)
     noiseLabel = torch.tensor([
-        0.0,
-    ] * num).long()
+                                  0.0,
+                              ] * num).long()
     data = torch.cat((data, gaussianNoise), 0)
     label = torch.cat((label, noiseLabel), 0)
     return (label, data)
@@ -490,4 +509,8 @@ def separateData(labels, datas, sep):
         else:
             trainData.append(datas[i])
             trainLabel.append(labels[i])
-    trainData = tor
+    trainData = torch.stack(trainData)
+    trainLabel = torch.stack(trainLabel)
+    testData = torch.stack(testData)
+    testLabel = torch.stack(testLabel)
+    return (trainData, trainLabel, testData, testLabel)
