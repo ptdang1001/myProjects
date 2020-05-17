@@ -97,7 +97,7 @@ class Mtrx23dMap():
         return (featureMap)
 
 
-def getSamplesFeature(probType, partitions, totalRow, totalCol, threshold, baseThreshold):
+def getSamplesFeature(probType,partitions, totalRow, totalCol, threshold, baseThreshold):
     # l1 bases
     bases = list()
     if probType == "l1c":
@@ -157,10 +157,6 @@ def nonZeroNum(sample):
 def getSamplesLabels(samples):
     labels = list(map(nonZeroNum, samples))
     labels = torch.tensor(labels)
-    gaussianNoise = torch.randn_like(samples)
-    gaussianNoise = gaussianNoise - torch.mean(gaussianNoise)
-    # gaussianNoise = torch.zeros_like(samples)
-    samples = samples + gaussianNoise
     return (labels, samples)
 
 
@@ -473,41 +469,45 @@ def getLkNormData(lk, normalBias, minusMean, num, zn, xn, yn, totalRow,
 
 
 #  get l1 base blocks data background noise is gaussian noise
-def getL1BaseData(normalBias, minusMean, num, zn, xn, yn, totalRow,
-                  totalCol, overlap, replace):
-    blocksNum = num * zn * 16
-    base1 = [1, 1, 1, -1, -1, -1, 0]
-    base2 = [1, 1, -1, -1, 0, 0, 0, ]
-    base3 = [1, -1, 0, 0, 0, 0, 0]
-    base4 = [2, 1, 1, -1, -1, -2, 0]
-    bases = [base1, base2, base3, base4]
-    _, basesMtrx = getBasesMtrxs(bases)
-    rowIdx = np.random.randint(low=0, high=basesMtrx.size()[1], size=blocksNum)
-    colIdx = np.random.randint(low=0, high=basesMtrx.size()[1], size=blocksNum)
-    basesMtrx = basesMtrx.t()
+def getL1SpeBaseData(baseAddNorm, minusMean, num, zn, xn, yn, totalRow,
+                     totalCol, overlap, replace):
+    base = []
+    if baseAddNorm == 0:
+        base1 = [1, ] * int(xn / 2)
+        base2 = [-1, ] * (xn - int(xn / 2))
+        bases = base1 + base2
+    else:
+        base1 = [1, ] * int(xn / 3)
+        base2 = [-1, ] * int(xn / 3)
+        base3 = torch.randn(1, xn - 2 * int(xn / 3))
+        bases = base1 + base2 + base3
+    base = torch.tensor(bases)
+    blocksNum = num * zn
     blocks = list()
     if minusMean == 0:
-        blocks = [
-            torch.matmul(basesMtrx[rowIdx[k]].view(len(basesMtrx[rowIdx[k]]), 1),
-                         basesMtrx[colIdx[k]].view(1, len(basesMtrx[colIdx[k]]))) + normalBias
-            for k in range(blocksNum)
-        ]
+        for _ in range(blocksNum):
+            randomIdx = torch.tensor(np.random.choice(range(xn),xn,replace=False)).long()
+            c = base[randomIdx].view(xn, 1).float()
+            r = torch.randn(1, xn)
+            blocks.append(torch.matmul(c, r))
     else:
-        for k in range(blocksNum):
-            block = torch.matmul(basesMtrx[rowIdx[k]].view(len(basesMtrx[rowIdx[k]]), 1),
-                                 basesMtrx[colIdx[k]].view(1, len(basesMtrx[colIdx[k]]))) + normalBias
-            block = block - torch.mean(block) + normalBias
+        for _ in range(blocksNum):
+            randomIdx = torch.tensor(np.random.choice(range(xn),xn,replace=False)).long()
+            c = base[randomIdx].view(xn, 1).float()
+            r = torch.randn(1, xn)
+            block = torch.matmul(c, r)
+            block = block - torch.mean(block)
             blocks.append(block)
     blocks = torch.stack(blocks).view(num, zn, xn, yn)
-    # gaussian noise parameters
-    gaussianNoise = torch.randn(zn, totalRow, totalCol)
-    gaussianNoise = gaussianNoise - torch.mean(gaussianNoise)
-    gaussianNoise = torch.zeros(zn, totalRow, totalCol)  # zero background noise
+    # zero noise parameters
+    # gaussianNoise = torch.randn(zn, totalRow, totalCol)
+    # gaussianNoise = gaussianNoise - torch.mean(gaussianNoise)
+    zeroNoise = torch.zeros(zn, totalRow, totalCol)  # zero background noise
 
     labels_datas = list()
     for i in range(1, num + 1):
         label = i
-        addNoiseRes = merge2Mtrx(blocks[0], gaussianNoise, 0, 0, replace)
+        addNoiseRes = merge2Mtrx(blocks[0], zeroNoise, 0, 0, replace)
         if i == 1:
             labels_datas.append([label, addNoiseRes.clone()])
             continue
@@ -528,17 +528,16 @@ def getL1BaseData(normalBias, minusMean, num, zn, xn, yn, totalRow,
 
 
 # add many mean noise to the whole data
-def addNumMeanNoise(data, label, num, mean, mbias, stdbias):
-    std = torch.ones(num,
+def addNumMeanNoise(data, label, num, mean, stdBias):
+    std = torch.zeros(num,
                      data.size()[1],
                      data.size()[2],
-                     data.size()[3]).add_(stdbias)
-    mean = mean + mbias
-    noiseData = torch.normal(mean, std)
+                     data.size()[3]).add_(stdBias)
+    noise = torch.normal(mean, std)
     noiseLabel = torch.tensor([
                                   0.0,
                               ] * num).long()
-    data = torch.cat((data, noiseData), 0)
+    data = torch.cat((data, noise), 0)
     label = torch.cat((label, noiseLabel), 0)
     return (label, data)
 
@@ -601,3 +600,9 @@ def getCNNOutSize(inDim, layerNum, kernelSize):
     for i in range(layerNum - 1):
         inDim = int((inDim - (kernelSize - 1)) / 2)
     return (inDim)
+
+def addDataError(data,mean,stdBias):
+    std=torch.zeros_like(data).add_(stdBias)
+    noise=torch.normal(mean,std)
+    noise=noise-torch.mean(noise)
+    return (data+noise)

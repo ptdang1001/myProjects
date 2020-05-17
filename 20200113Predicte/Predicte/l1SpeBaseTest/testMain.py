@@ -40,9 +40,11 @@ parser.add_argument(
 
 parser.add_argument("--replace", type=int, help="data+noise or data>noise")
 parser.add_argument("--minusMean", type=int, help="if minus mean")
-parser.add_argument("--normBias", type=int, help="data plus bias")
+parser.add_argument("--stdBias", type=int, help="std")
 parser.add_argument("--baseNumThreshold", type=int, help="base number threshold")
 parser.add_argument("--xn", type=int, help="number of rows and cols")
+parser.add_argument("--baseAddNorm", type=int, help="if add norm to data")
+
 opt = parser.parse_args()
 
 
@@ -50,27 +52,30 @@ def main():
     # data parameters
     runPams = list()
 
+    baseAddNorm=opt.baseAddNorm
     minusMean = opt.minusMean
-    normBias=opt.normBias
+    xn=opt.xn
+    stdBias=opt.stdBias
     baseNumThreshold=opt.baseNumThreshold
     '''
+    baseAddNorm=0
     minusMean = 0
-    normBias = 0
+    xn = 20
+    stdBias = 0
+    stdBias=stdBias/10
     baseNumThreshold = 100
     '''
-    xn = 28
-    baseLen = 7
-    blockNum=1
-    runPams.append(blockNum)
+    runPams.append(baseAddNorm)
     runPams.append(minusMean)
-    runPams.append(normBias)
-    runPams.append(baseNumThreshold)
     runPams.append(xn)
+    runPams.append(stdBias)
+    runPams.append(baseNumThreshold)
     # l1 bases
 
+    baseLen = 7
     olabel, samples, baseFeatures, inconBaseFeatures = myUtils.getSpeBaseL1.main(runPams)
     '''
-    #[print(olabel[i], samples[i]) for i in range(len(olabel))]
+    [print(olabel[i], samples[i]) for i in range(len(olabel))]
     print(inconBaseFeatures.size())
     print(baseFeatures.size())
     print(samples.size())
@@ -119,14 +124,14 @@ def main():
     # prepare results
 
     res = list()
+    res.append(baseAddNorm)
     if minusMean == 1:
-        res.append("6c*r-E")
+        res.append("c*r-E")
     else:
-        res.append("6c*r")
-    res.append("X+" + str(normBias))
+        res.append("c*r")
+    res.append("N(0-" + str(stdBias) + ")")
     res.append(xn)
     res.append(baseLen)
-    res.append("N(01)-E")
     res.append(sres)
     res.append(baseFeatures.size()[3])
     res.append(bres)
