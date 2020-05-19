@@ -23,7 +23,7 @@ def main(runPams):
     blockNum = 1
     inconThreshold = -7
     replace = 0
-    zn = 12
+    zn = 1
     yn = xn
     totalRow = 50
     totalCol = totalRow

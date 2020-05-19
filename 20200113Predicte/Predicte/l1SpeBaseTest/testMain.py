@@ -1,10 +1,7 @@
 # -*- coding: utf8 -*
 
 # system lib
-import myUtils.getSpeBaseL1
-import myUtils.myTrainTest
-import myUtils.myData
-import myModules
+
 import sys
 import argparse
 import os
@@ -17,7 +14,10 @@ import pandas as pd
 # my libs
 path = os.path.abspath("..")
 sys.path.append(path)
-# import myUtils.myDraw
+import myUtils.getSpeBaseL1
+import myUtils.myTrainTest
+import myUtils.myData
+import myModules
 
 # parameters
 parser = argparse.ArgumentParser()
