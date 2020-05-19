@@ -1,6 +1,10 @@
 # -*- coding: utf8 -*
 
 # system lib
+import myUtils.getSpeBaseL1
+import myUtils.myTrainTest
+import myUtils.myData
+import myModules
 import sys
 import argparse
 import os
@@ -8,15 +12,12 @@ import os
 # third part libs
 import torch
 import torch.nn as nn
+import pandas as pd
 
 # my libs
 path = os.path.abspath("..")
 sys.path.append(path)
-import myModules
-import myUtils.myData
-import myUtils.myTrainTest
 # import myUtils.myDraw
-import myUtils.getSpeBaseL1
 
 # parameters
 parser = argparse.ArgumentParser()
@@ -41,7 +42,10 @@ parser.add_argument(
 parser.add_argument("--replace", type=int, help="data+noise or data>noise")
 parser.add_argument("--minusMean", type=int, help="if minus mean")
 parser.add_argument("--stdBias", type=int, help="std")
-parser.add_argument("--baseNumThreshold", type=int, help="base number threshold")
+parser.add_argument(
+    "--baseNumThreshold",
+    type=int,
+    help="base number threshold")
 parser.add_argument("--xn", type=int, help="number of rows and cols")
 parser.add_argument("--baseAddNorm", type=int, help="if add norm to data")
 
@@ -52,18 +56,19 @@ def main():
     # data parameters
     runPams = list()
 
-    baseAddNorm=opt.baseAddNorm
+    baseAddNorm = opt.baseAddNorm
     minusMean = opt.minusMean
-    xn=opt.xn
-    stdBias=opt.stdBias
-    baseNumThreshold=opt.baseNumThreshold
+    xn = opt.xn
+    stdBias = opt.stdBias
+    stdBias = stdBias / 10
+    baseNumThreshold = opt.baseNumThreshold
     '''
     baseAddNorm=0
     minusMean = 0
     xn = 20
-    stdBias = 0
+    stdBias = 5
     stdBias=stdBias/10
-    baseNumThreshold = 100
+    baseNumThreshold = 40
     '''
     runPams.append(baseAddNorm)
     runPams.append(minusMean)
@@ -71,9 +76,9 @@ def main():
     runPams.append(stdBias)
     runPams.append(baseNumThreshold)
     # l1 bases
-
     baseLen = 7
-    olabel, samples, baseFeatures, inconBaseFeatures = myUtils.getSpeBaseL1.main(runPams)
+    olabel, samples, baseFeatures, inconBaseFeatures = myUtils.getSpeBaseL1.main(
+        runPams)
     '''
     [print(olabel[i], samples[i]) for i in range(len(olabel))]
     print(inconBaseFeatures.size())
@@ -114,13 +119,15 @@ def main():
 
     # samples data
     sres = myUtils.myTrainTest.train_test(olabel, samples, sfcn, device,
-                                          soptimizer, slossFunc, opt)
+                                                        soptimizer, slossFunc, opt)
+
     # baseFeature data
     bres = myUtils.myTrainTest.train_test(olabel, baseFeatures, bcnn, device,
-                                          boptimizer, blossFunc, opt)
+                                                        boptimizer, blossFunc, opt)
+
     # inconBaseFeature data
     ires = myUtils.myTrainTest.train_test(olabel, inconBaseFeatures, icnn, device,
-                                          ioptimizer, ilossFunc, opt)
+                                                        ioptimizer, ilossFunc, opt)
     # prepare results
 
     res = list()

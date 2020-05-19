@@ -1,6 +1,8 @@
 # -*- coding: utf8 -*
 
 # system lib
+import myUtils.myEvaluation
+import myUtils.myData
 import sys
 import argparse
 import os
@@ -16,12 +18,10 @@ from torch.utils.data import Dataset, DataLoader
 # my libs
 path = ""
 if platform.system() == "Windows":
-    path = os.path.abspath("./Predicte")  #windos system
+    path = os.path.abspath("./Predicte")  # windos system
 else:
-    path = os.path.abspath("..")  #linux system
+    path = os.path.abspath("..")  # linux system
 sys.path.append(path)
-import myUtils.myData
-import myUtils.myEvaluation
 
 
 def train_test(label, data, Net, device, optimizer, lossFunc, opt):
@@ -64,13 +64,14 @@ def train_test(label, data, Net, device, optimizer, lossFunc, opt):
                             shuffle=True,
                             num_workers=opt.n_cpu,
                             pin_memory=torch.cuda.is_available())
+    rmse = 0.0  # root mean square error
     acc = 0.  # Accuracy
     SE = 0.  # Sensitivity (Recall)
-    #SP = 0.     # Specificity
+    # SP = 0.     # Specificity
     PC = 0.  # Precision
     F1 = 0.  # F1 Score
     JS = 0.  # Jaccard Similarity
-    #DC = 0.     # Dice Coefficient
+    # DC = 0.     # Dice Coefficient
     length = 0
     for (x, y) in dataLoader:
         b_x = Variable(x.to(device))  # batch x (data)
@@ -79,8 +80,8 @@ def train_test(label, data, Net, device, optimizer, lossFunc, opt):
         predicted = torch.max(outputs.data, 1)[1].cpu()
         #correct += (predicted == GT).sum().item()
         b_y = b_y.cpu()
+        rmse += myUtils.myEvaluation.get_RMSE(b_y, predicted)
         acc += myUtils.myEvaluation.get_accuracy(b_y, predicted)
-
         SE += myUtils.myEvaluation.get_sensitivity(b_y, predicted)
         #SP += myUtils.myEvaluation.get_specificity(b_y, predicted)
         PC += myUtils.myEvaluation.get_precision(b_y, predicted)
@@ -89,6 +90,7 @@ def train_test(label, data, Net, device, optimizer, lossFunc, opt):
         #DC += myUtils.myEvaluation.get_DC(b_y, predicted)
         length += 1
 
+    rmse = round(rmse / length, 3)
     acc = round(100 * acc / length, 3)
     SE = round(SE / length, 3)
     #SP = round(SP/length,4)
@@ -97,13 +99,13 @@ def train_test(label, data, Net, device, optimizer, lossFunc, opt):
     JS = round(JS / length, 3)
     #DC = DC/length
     res = list()
+    res.append(rmse)
     res.append(acc)
     res.append(SE)
-    #res.append(SP)
+    # res.append(SP)
     res.append(PC)
     res.append(F1)
     res.append(JS)
-    #res.append(DC)
+    # res.append(DC)
     res = ','.join(str(i) for i in res)
-
     return (res)
