@@ -57,7 +57,7 @@ opt = parser.parse_args()
 def main():
     # data parameters
     runPams = list()
-
+    '''
     baseAddNorm = opt.baseAddNorm
     minusMean = opt.minusMean
     xn = opt.xn
@@ -71,7 +71,7 @@ def main():
     stdBias = 5
     stdBias = stdBias / 10
     baseNumThreshold = 40
-    '''
+
     runPams.append(baseAddNorm)
     runPams.append(minusMean)
     runPams.append(xn)
@@ -81,14 +81,14 @@ def main():
     baseLen = 7
     olabel, samples, baseFeatures, inconBaseFeatures = myUtils.getSpeBaseL1.main(
         runPams)
-    '''
+
     [print(olabel[i], samples[i]) for i in range(len(olabel))]
     print(inconBaseFeatures.size())
     print(baseFeatures.size())
     print(samples.size())
     print(olabel.size())
     sys.exit()
-    '''
+    
     # networks
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     # samples networks

@@ -6,12 +6,13 @@ import csv
 
 # 3rd libs
 import torch
-import torch.nn as nn
 from torch.utils.data import Dataset, DataLoader
 import numpy as np
 from itertools import permutations
 import itertools
 from scipy.sparse.linalg import svds, eigs
+import pysnooper
+import numba as nb
 
 
 # my libs
@@ -21,12 +22,17 @@ def test():
     print("hello")
 
 
+# end
+
+
 # gene dataset loader
 class GeneDataset(Dataset):
     def __init__(self, data, label, transform=None):
         self.data = data
         self.label = label
         self.transform = transform
+
+    # end
 
     def __getitem__(self, index):
         x = self.data[index]
@@ -35,8 +41,11 @@ class GeneDataset(Dataset):
             x = self.transform(x)
         return x, y
 
+    # end
+
     def __len__(self):
         return len(self.data)
+    # end
 
 
 class Mtrx23dMap():
@@ -48,6 +57,8 @@ class Mtrx23dMap():
         self.totalCol = totalCol
         self.randomRowColIdx = randomRowColIdx
 
+    # end
+
     def getMaxSlice(self, baseFeature, startIdx, endIdx):
         maxSlice = torch.max(baseFeature[:, :, startIdx:endIdx], 2)
         maxSlice = maxSlice[0]  # get values
@@ -56,6 +67,8 @@ class Mtrx23dMap():
         y = 1
         maxSlice = maxSlice.reshape(z, x, y)
         return (maxSlice)
+
+    # end
 
     def getBaseMap(self, samples):
         rowFeature = torch.matmul(samples, self.bases.float())
@@ -71,12 +84,16 @@ class Mtrx23dMap():
         finalMap = torch.cat(finalMap, 2)  # 1000x7xlen(bases)
         return (finalMap)
 
+    # end
+
     def getBaseMapNoMaxPooling(self, samples):
         rowFeature = torch.matmul(samples, self.bases.float())
         colFeature = torch.matmul(samples.permute(0, 2, 1), self.bases.float())
-        baseFeature = torch.stack((rowFeature, colFeature), 1)  # 1000*2*7*m
+        # baseFeature = torch.stack((rowFeature, colFeature), 1)  # 1000*2*7*m
         # baseFeature = baseFeature.permute(0, 3, 2, 1)
-        return (baseFeature)
+        return (rowFeature, colFeature)
+
+    # end
 
     def getSamples(self, partition):
         samples = [
@@ -86,18 +103,25 @@ class Mtrx23dMap():
         samples = torch.stack(samples)
         return (samples)
 
+    # end
+
     def getFeatureMap(self, partition):
         samples = self.getSamples(partition)
         baseMap = self.getBaseMap(samples)
         featureMap = baseMap.permute(2, 1, 0)
         return (featureMap)
 
+    # end
+
     def main(self, partition):
         featureMap = self.getFeatureMap(partition)
         return (featureMap)
+    # end
 
 
-def getSamplesFeature(probType,partitions, totalRow, totalCol, threshold, baseThreshold):
+# end
+
+def getSamplesFeature(probType, partitions, totalRow, totalCol):
     # l1 bases
     bases = list()
     if probType == "l1c":
@@ -129,22 +153,17 @@ def getSamplesFeature(probType,partitions, totalRow, totalCol, threshold, baseTh
                                          hight=totalCol - 1,
                                          row=2,
                                          col=len(bases[0]),
-                                         number=500)
+                                         number=5)
     # get all base mtrx
+    consisBasesScores = getConsistencyScoreMtrx(basesMtrx)
     mtx2map = Mtrx23dMap(baseTypeNum, basesMtrx, totalRow, totalCol, randomRowColIdx)
     samples = list(map(mtx2map.getSamples, partitions))
     samples = torch.cat(samples, 0)
-    baseFeature = mtx2map.getBaseMapNoMaxPooling(samples)
+    rowFeature, colFeature = mtx2map.getBaseMapNoMaxPooling(samples)
+    return (samples, rowFeature, colFeature, consisBasesScores)
 
-    # get hight inconsistency score base mtrx
-    inconBasesMtrx = getInconsistencyBasesMtrxs(basesMtrx, threshold)
-    while inconBasesMtrx.size()[1] > baseThreshold:
-        inconBasesMtrx = getInconsistencyBasesMtrxs(inconBasesMtrx, threshold)
-    inconMtx2Map = Mtrx23dMap(baseTypeNum, inconBasesMtrx, totalRow, totalCol, randomRowColIdx)
-    inconSamples = list(map(inconMtx2Map.getSamples, partitions))
-    inconSamples = torch.cat(inconSamples, 0)
-    inconBaseFeature = inconMtx2Map.getBaseMapNoMaxPooling(inconSamples)
-    return (samples, baseFeature, inconBaseFeature)
+
+# end
 
 
 def nonZeroNum(sample):
@@ -154,10 +173,16 @@ def nonZeroNum(sample):
         return (0)
 
 
+# end
+
+
 def getSamplesLabels(samples):
     labels = list(map(nonZeroNum, samples))
     labels = torch.tensor(labels)
     return (labels, samples)
+
+
+# end
 
 
 def get3dMap(probType, totalRow, totalCol, datas):
@@ -202,6 +227,50 @@ def get3dMap(probType, totalRow, totalCol, datas):
     return (mapDatas)
 
 
+# end
+
+def delFeature(fTmp, idx, scoreTmp, conThreshold):
+    colNum = scoreTmp.size()[1]
+    saveIdx = [i for i in range(colNum) if idx != i and fTmp[idx][i] < conThreshold]
+    fTmp = fTmp[saveIdx]
+    scoreTmp = scoreTmp[:, saveIdx]
+    return (fTmp, scoreTmp)
+
+
+# end
+
+@pysnooper.snoop()
+def getOptFeature(f_b_c):
+    feature, basesConsisScores, conThreshold = f_b_c[0], f_b_c[1], f_b_c[2]
+    fSort = feature.t().clone()  # 7*M->M*7
+    fSort = torch.sort(fSort)
+    fSort = fSort[0]
+    # rowNum = fSort.size()[0]
+    colNum = fSort.size()[1]
+    optFeatures = list()
+    for c in range(colNum):
+        fMaxMeans = list()
+        fTmp = fSort.clone()
+        scoreTmp = basesConsisScores.clone()
+        while len(fTmp) > 1:
+            fMean = torch.mean(fTmp, dim=1, keepdim=True)
+            fMaxMean, fMaxIdx = torch.max(fMean, 0)
+            fMaxMeans.append(fMaxMean)
+            fTmp, scoreTmp = delFeature(fTmp, fMaxIdx, scoreTmp, conThreshold)
+        optFeatures.append(fMaxMeans)
+        if c == colNum:
+            break
+        fSort = fSort[:, c + 1:]
+    maxLen = max([(len(f), f) for f in optFeatures])
+    for f in optFeatures:
+        f.extend(0.0 for _ in range(maxLen - len(f)))
+    optFeatures = torch.stack(optFeatures).t()
+    sys.exit()
+    return (optFeatures)
+
+
+# end
+
 # sparse ssvd
 def ssvd(x, r=1):
     x = np.array(x)
@@ -213,11 +282,17 @@ def ssvd(x, r=1):
     return (sptopreconstruct)
 
 
+# end
+
+
 # transtorm 3 1x7 1d bases vectors to 1 7xm 2d matrix
 def getBaseMtrx(base):
     basePermsMtrx = list(set(list(permutations(base, len(base)))))
     basePermsMtrx = np.stack(basePermsMtrx).T
     return (basePermsMtrx)
+
+
+# end
 
 
 def getBasesMtrxs(bases):
@@ -228,6 +303,27 @@ def getBasesMtrxs(bases):
     baseTypeNum = list(itertools.accumulate(baseTypeNum))
     return (baseTypeNum, basesMtrx)
 
+
+# end
+
+def getConsistencyScoreMtrx(basesMtrx):
+    conBasesMtrx = basesMtrx.t().clone()
+    rowNum = conBasesMtrx.size()[0]
+    colNum = conBasesMtrx.size()[1]
+    consisScoreMtrx = torch.zeros(rowNum, rowNum)
+    for i1 in range(rowNum - 1):
+        for i2 in range(i1 + 1, rowNum):
+            score = 0
+            for j in range(colNum):
+                if conBasesMtrx[i1][j] == conBasesMtrx[i2][j]:
+                    score = score + 1
+                else:
+                    score = score - 1
+            consisScoreMtrx[i1][i2] = consisScoreMtrx[i2][i1] = score
+    return (conBasesMtrx)
+
+
+# end
 
 def getInconsistencyBasesMtrxs(basesMtrx, threshold):
     inconBasesMtrx = basesMtrx.t().clone()
@@ -254,7 +350,7 @@ def getInconsistencyBasesMtrxs(basesMtrx, threshold):
     return (inconBasesMtrx)
 
 
-# transtorm 3 1x7 1d bases vectors to 1 7xm 2d matrix
+# end
 
 
 # get all row index list and col index list randomly
@@ -486,13 +582,13 @@ def getL1SpeBaseData(baseAddNorm, minusMean, num, zn, xn, yn, totalRow,
     blocks = list()
     if minusMean == 0:
         for _ in range(blocksNum):
-            randomIdx = torch.tensor(np.random.choice(range(xn),xn,replace=False)).long()
+            randomIdx = torch.tensor(np.random.choice(range(xn), xn, replace=False)).long()
             c = base[randomIdx].view(xn, 1).float()
             r = torch.randn(1, xn)
             blocks.append(torch.matmul(c, r))
     else:
         for _ in range(blocksNum):
-            randomIdx = torch.tensor(np.random.choice(range(xn),xn,replace=False)).long()
+            randomIdx = torch.tensor(np.random.choice(range(xn), xn, replace=False)).long()
             c = base[randomIdx].view(xn, 1).float()
             r = torch.randn(1, xn)
             block = torch.matmul(c, r)
@@ -530,9 +626,9 @@ def getL1SpeBaseData(baseAddNorm, minusMean, num, zn, xn, yn, totalRow,
 # add many mean noise to the whole data
 def addNumMeanNoise(data, label, num, mean, stdBias):
     std = torch.zeros(num,
-                     data.size()[1],
-                     data.size()[2],
-                     data.size()[3]).add_(stdBias)
+                      data.size()[1],
+                      data.size()[2],
+                      data.size()[3]).add_(stdBias)
     noise = torch.normal(mean, std)
     noiseLabel = torch.tensor([
                                   0.0,
@@ -601,8 +697,9 @@ def getCNNOutSize(inDim, layerNum, kernelSize):
         inDim = int((inDim - (kernelSize - 1)) / 2)
     return (inDim)
 
-def addDataError(data,mean,stdBias):
-    std=torch.zeros_like(data).add_(stdBias)
-    noise=torch.normal(mean,std)
-    noise=noise-torch.mean(noise)
-    return (data+noise)
+
+def addDataError(data, mean, stdBias):
+    std = torch.zeros_like(data).add_(stdBias)
+    noise = torch.normal(mean, std)
+    noise = noise - torch.mean(noise)
+    return (data + noise)

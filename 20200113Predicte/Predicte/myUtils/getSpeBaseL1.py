@@ -6,12 +6,12 @@ import sys
 
 # 3rd libs
 import torch
-
+import pysnooper
 # my libs
 
 import myUtils.myData
 
-
+@pysnooper.snoop()
 def main(runPams):
     # parameters
     baseAddNorm = runPams[0]
@@ -21,7 +21,7 @@ def main(runPams):
     baseNumThreshold = runPams[4]
     mean = 0
     blockNum = 1
-    inconThreshold = -7
+    conThreshold = 0
     replace = 0
     zn = 1
     yn = xn
@@ -39,16 +39,19 @@ def main(runPams):
     datas = list(map(myUtils.myData.shuffleData, datas))
     datas = torch.stack(datas)
     # get samples
-    samples, baseFeature, inconBaseFeature = myUtils.myData.getSamplesFeature(probType, datas, totalRow, totalCol,
-                                                                              inconThreshold, baseNumThreshold)
+    samples, rowFeatures, colFeatures, basesConsisScores = myUtils.myData.getSamplesFeature(probType, datas, totalRow,
+                                                                                            totalCol)
+
+    colFeature_basesConsisScores = [[f, basesConsisScores, conThreshold] for f in colFeatures]
+    optColFeatures = list(map(myUtils.myData.getOptFeature, colFeature_basesConsisScores))
+    sys.exit()
     labels, samples = myUtils.myData.getSamplesLabels(samples)
     # [print(labels[i],samples[i]) for i in range(len(samples))]
     # sys.exit()
     # add data error
     samples = myUtils.myData.addDataError(samples, mean, stdBias)
-    baseFeature = myUtils.myData.addDataError(baseFeature, mean, stdBias)
-    inconBaseFeature = myUtils.myData.addDataError(
-        inconBaseFeature, mean, stdBias)
+    rowFeature = myUtils.myData.addDataError(rowFeature, mean, stdBias)
+    colFeature = myUtils.myData.addDataError(colFeature, mean, stdBias)
     # [print(labels[i], samples[i]) for i in range(len(samples))]
     # sys.exit()
     # process samples
@@ -57,11 +60,14 @@ def main(runPams):
         1,
         samples.size()[1],
         samples.size()[2])
+    # add num mean noise to samples
     labels, samples = myUtils.myData.addNumMeanNoise(
         samples, labels, int(len(samples) / 3), mean, stdBias)
-    _, baseFeature = myUtils.myData.addNumMeanNoise(
-        baseFeature, labels, int(len(baseFeature) / 3), mean, stdBias)
-    _, inconBaseFeature = myUtils.myData.addNumMeanNoise(
-        inconBaseFeature, labels, int(
-            len(inconBaseFeature) / 3), mean, stdBias)
-    return (labels, samples, baseFeature, inconBaseFeature)
+    # add num mean noise to samples
+    _, rowFeature = myUtils.myData.addNumMeanNoise(
+        rowFeature, labels, int(len(baseFeature) / 3), mean, stdBias)
+    # add num mean noise to samples
+    _, colFeature = myUtils.myData.addNumMeanNoise(
+        colFeature, labels, int(
+            len(colFeature) / 3), mean, stdBias)
+    return (labels, samples, rowFeature, colFeature)
