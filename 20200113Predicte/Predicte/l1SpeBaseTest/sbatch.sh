@@ -1,7 +1,7 @@
 #!/bin/bash
 
 #SBATCH -J L1Spe
-#SBATCH -p dl
+#SBATCH -p dl-debug
 #SBATCH -o /N/project/zhangclab/pengtao/myProjectsDataRes/20200113Predicte/results/l1SpeBaseTest/block1/res/testMain_%j.csv
 #SBATCH -e /N/project/zhangclab/pengtao/myProjectsDataRes/20200113Predicte/results/l1SpeBaseTest/block1/err/testMain_%j.err
 #SBATCH --mail-type=ALL

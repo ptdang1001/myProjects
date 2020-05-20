@@ -2,9 +2,9 @@
 module switch python/2.7.16 python/3.6.8
 for baseAddNorm in {0..1}; do
   for minusMean in {0..1}; do
-    for ((xn=20; xn<=40; xn+=5)); do
-      for ((stdBias=0; stdBias<=10; stdBias+=2)); do
-        for ((baseNumThreshold = 10; baseNumThreshold <= 200; baseNumThreshold +=20 )); do
+    for ((xn = 25; xn <= 40; xn += 5)); do
+      for ((stdBias = 0; stdBias <= 10; stdBias += 2)); do
+        for ((baseNumThreshold = 10; baseNumThreshold <= 200; baseNumThreshold += 20)); do
           jobNum=$(squeue -u pdang | awk '$4=="pdang"' | wc -l)
           if [ $jobNum -le 1 ]; then
             sbatch sbatch.sh ${baseAddNorm} ${minusMean} ${xn} ${stdBias} ${baseNumThreshold}
@@ -20,4 +20,3 @@ for baseAddNorm in {0..1}; do
     done
   done
 done
-

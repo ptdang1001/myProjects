@@ -72,6 +72,7 @@ def train_test(label, data, Net, device, optimizer, lossFunc, opt):
     F1 = 0.  # F1 Score
     JS = 0.  # Jaccard Similarity
     # DC = 0.     # Dice Coefficient
+    ytrue_ypred=list()
     length = 0
     for (x, y) in dataLoader:
         b_x = Variable(x.to(device))  # batch x (data)
@@ -80,6 +81,7 @@ def train_test(label, data, Net, device, optimizer, lossFunc, opt):
         predicted = torch.max(outputs.data, 1)[1].cpu()
         #correct += (predicted == GT).sum().item()
         b_y = b_y.cpu()
+        ytrue_ypred.append([b_y.numpy(),predicted.numpy()])
         rmse += myUtils.myEvaluation.get_RMSE(b_y, predicted)
         acc += myUtils.myEvaluation.get_accuracy(b_y, predicted)
         SE += myUtils.myEvaluation.get_sensitivity(b_y, predicted)
@@ -107,5 +109,5 @@ def train_test(label, data, Net, device, optimizer, lossFunc, opt):
     res.append(F1)
     res.append(JS)
     # res.append(DC)
-    res = ','.join(str(i) for i in res)
-    return (res)
+    #res = ','.join(str(i) for i in res)
+    return (res, ytrue_ypred)

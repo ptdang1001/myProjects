@@ -1,23 +1,25 @@
 # -*- coding: utf8 -*
 
 # system lib
-
-import sys
+import pandas as pd
+import torch.nn as nn
+import torch
 import argparse
+import sys
+import time
 import os
 
-# third part libs
-import torch
-import torch.nn as nn
-import pandas as pd
-
-# my libs
 path = os.path.abspath("..")
 sys.path.append(path)
 import myUtils.getSpeBaseL1
 import myUtils.myTrainTest
 import myUtils.myData
 import myModules
+
+# third part libs
+
+# my libs
+
 
 # parameters
 parser = argparse.ArgumentParser()
@@ -63,11 +65,11 @@ def main():
     stdBias = stdBias / 10
     baseNumThreshold = opt.baseNumThreshold
     '''
-    baseAddNorm=0
+    baseAddNorm = 0
     minusMean = 0
     xn = 20
     stdBias = 5
-    stdBias=stdBias/10
+    stdBias = stdBias / 10
     baseNumThreshold = 40
     '''
     runPams.append(baseAddNorm)
@@ -118,15 +120,15 @@ def main():
     ilossFunc = nn.CrossEntropyLoss()
 
     # samples data
-    sres = myUtils.myTrainTest.train_test(olabel, samples, sfcn, device,
+    sres, sytrue_ypred = myUtils.myTrainTest.train_test(olabel, samples, sfcn, device,
                                                         soptimizer, slossFunc, opt)
 
     # baseFeature data
-    bres = myUtils.myTrainTest.train_test(olabel, baseFeatures, bcnn, device,
+    bres, bytrue_ypred = myUtils.myTrainTest.train_test(olabel, baseFeatures, bcnn, device,
                                                         boptimizer, blossFunc, opt)
 
     # inconBaseFeature data
-    ires = myUtils.myTrainTest.train_test(olabel, inconBaseFeatures, icnn, device,
+    ires, iytrue_ypred = myUtils.myTrainTest.train_test(olabel, inconBaseFeatures, icnn, device,
                                                         ioptimizer, ilossFunc, opt)
     # prepare results
 
@@ -144,6 +146,25 @@ def main():
     res.append(bres)
     res.append(inconBaseFeatures.size()[3])
     res.append(ires)
+
+    resDF = pd.DataFrame(res)
+    resDF.columns = ["res"]
+    sytrue_ypred = pd.DataFrame(sytrue_ypred)
+    sytrue_ypred.columns = ["true", "pred"]
+    bytrue_ypred = pd.DataFrame(bytrue_ypred)
+    bytrue_ypred.columns = ["true", "pred"]
+    iytrue_ypred = pd.DataFrame(iytrue_ypred)
+    iytrue_ypred.columns = ["true", "pred"]
+    tm = str(int(time.time()))
+    #filePath = "C:\\Users\\pdang\\Desktop\\" + tm + ".xlsx"
+    filePath="/N/project/zhangclab/pengtao/myProjectsDataRes/20200113Predicte/results/l1SpeBaseTest/block1/excelRes"+tm+".xlsx"
+    writer = pd.ExcelWriter(filePath)  # 写入Excel文件
+    resDF.to_excel(writer, index=False)
+    sytrue_ypred.to_excel(writer, startcol=3, index=False)
+    bytrue_ypred.to_excel(writer, startcol=8, index=False)
+    iytrue_ypred.to_excel(writer, startcol=12, index=False)
+    writer.save()
+    writer.close()
     res = ','.join(str(i) for i in res)
     print(res)
     return ()
