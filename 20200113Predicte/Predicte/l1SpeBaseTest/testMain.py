@@ -157,7 +157,7 @@ def main():
     iytrue_ypred.columns = ["true", "pred"]
     tm = str(int(time.time()))
     #filePath = "C:\\Users\\pdang\\Desktop\\" + tm + ".xlsx"
-    filePath="/N/project/zhangclab/pengtao/myProjectsDataRes/20200113Predicte/results/l1SpeBaseTest/block1/excelRes"+tm+".xlsx"
+    filePath="/N/project/zhangclab/pengtao/myProjectsDataRes/20200113Predicte/results/l1SpeBaseTest/block1/excelRes/"+tm+".xlsx"
     writer = pd.ExcelWriter(filePath)  # 写入Excel文件
     resDF.to_excel(writer, index=False)
     sytrue_ypred.to_excel(writer, startcol=3, index=False)
