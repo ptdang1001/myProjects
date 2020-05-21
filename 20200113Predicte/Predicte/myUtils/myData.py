@@ -2,28 +2,18 @@
 
 # sys libs
 import sys
-import csv
 
 # 3rd libs
 import torch
-from torch.utils.data import Dataset, DataLoader
+from torch.utils.data import Dataset
 import numpy as np
 from itertools import permutations
 import itertools
-from scipy.sparse.linalg import svds, eigs
+from scipy.sparse.linalg import svds
 import pysnooper
-import numba as nb
 
 
 # my libs
-
-
-def test():
-    print("hello")
-
-
-# end
-
 
 # gene dataset loader
 class GeneDataset(Dataset):
@@ -153,9 +143,10 @@ def getSamplesFeature(probType, partitions, totalRow, totalCol):
                                          hight=totalCol - 1,
                                          row=2,
                                          col=len(bases[0]),
-                                         number=5)
+                                         number=500)
     # get all base mtrx
     consisBasesScores = getConsistencyScoreMtrx(basesMtrx)
+    #consisBasesScores = torch.randn(1652, 1652)
     mtx2map = Mtrx23dMap(baseTypeNum, basesMtrx, totalRow, totalCol, randomRowColIdx)
     samples = list(map(mtx2map.getSamples, partitions))
     samples = torch.cat(samples, 0)
@@ -231,7 +222,7 @@ def get3dMap(probType, totalRow, totalCol, datas):
 
 def delFeature(fTmp, idx, scoreTmp, conThreshold):
     colNum = scoreTmp.size()[1]
-    saveIdx = [i for i in range(colNum) if idx != i and fTmp[idx][i] < conThreshold]
+    saveIdx = [i for i in range(colNum) if idx != i and scoreTmp[idx][i] <= conThreshold]
     fTmp = fTmp[saveIdx]
     scoreTmp = scoreTmp[:, saveIdx]
     return (fTmp, scoreTmp)
@@ -239,7 +230,7 @@ def delFeature(fTmp, idx, scoreTmp, conThreshold):
 
 # end
 
-@pysnooper.snoop()
+# @pysnooper.snoop()
 def getOptFeature(f_b_c):
     feature, basesConsisScores, conThreshold = f_b_c[0], f_b_c[1], f_b_c[2]
     fSort = feature.t().clone()  # 7*M->M*7
@@ -252,20 +243,20 @@ def getOptFeature(f_b_c):
         fMaxMeans = list()
         fTmp = fSort.clone()
         scoreTmp = basesConsisScores.clone()
-        while len(fTmp) > 1:
+        while len(fTmp) >= 1:
             fMean = torch.mean(fTmp, dim=1, keepdim=True)
             fMaxMean, fMaxIdx = torch.max(fMean, 0)
             fMaxMeans.append(fMaxMean)
+            fMaxIdx = fMaxIdx.item()
             fTmp, scoreTmp = delFeature(fTmp, fMaxIdx, scoreTmp, conThreshold)
         optFeatures.append(fMaxMeans)
         if c == colNum:
             break
-        fSort = fSort[:, c + 1:]
-    maxLen = max([(len(f), f) for f in optFeatures])
+        fSort = fSort[:, 1:]
+    maxLen = max([(len(f)) for f in optFeatures])
     for f in optFeatures:
         f.extend(0.0 for _ in range(maxLen - len(f)))
-    optFeatures = torch.stack(optFeatures).t()
-    sys.exit()
+    # optFeatures = torch.tensor(optFeatures)
     return (optFeatures)
 
 
@@ -539,7 +530,7 @@ def getLkNormData(lk, normalBias, minusMean, num, zn, xn, yn, totalRow,
     # gaussian noise parameters
     gaussianNoise = torch.randn(zn, totalRow, totalCol)
     gaussianNoise = gaussianNoise - torch.mean(gaussianNoise)
-    gaussianNoise = torch.zeros(zn, totalRow, totalCol)  # zero background noise
+    #gaussianNoise = torch.zeros(zn, totalRow, totalCol)  # zero background noise
 
     labels_datas = list()
     for i in range(1, num + 1):
@@ -703,3 +694,18 @@ def addDataError(data, mean, stdBias):
     noise = torch.normal(mean, std)
     noise = noise - torch.mean(noise)
     return (data + noise)
+
+
+# end
+
+def completeData2SameColLen(data):
+    maxColLen = 0
+    for d in data:
+        tmpLen = len(d[0])
+        maxColLen = tmpLen if tmpLen > maxColLen else maxColLen
+    for d in data:
+        for col in d:
+            col.extend(0.0 for _ in range(maxColLen - len(col)))
+    data = torch.tensor(data)
+    return (data)
+# end
