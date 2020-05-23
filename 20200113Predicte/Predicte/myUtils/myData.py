@@ -145,10 +145,10 @@ def getSamplesFeature(probType, mean, stdBias, numThreshold, partitions,
                                          hight=totalCol - 1,
                                          row=2,
                                          col=len(bases[0]),
-                                         number=500)
+                                         number=5)
     # get all base mtrx
-    scorePath = "/N/project/zhangclab/pengtao/myProjectsDataRes/20200113Predicte/data/consisBasesScores.npy"
-    #scorePath = "C:\\Users\\pdang\\Desktop\\consisBasesScores.npy"
+    #scorePath = "/N/project/zhangclab/pengtao/myProjectsDataRes/20200113Predicte/data/consisBasesScores.npy"
+    scorePath = "C:\\Users\\pdang\\Desktop\\consisBasesScores.npy"
     consisBasesScores = torch.tensor(np.load(scorePath))
     mtx2map = Mtrx23dMap(baseTypeNum, basesMtrx, totalRow, totalCol,
                          randomRowColIdx)
@@ -173,13 +173,9 @@ def getSamplesFeature(probType, mean, stdBias, numThreshold, partitions,
     optColFeatureMap = completeData2SameColLen(optColFeatureMap)
     # combine opt row and col to one
     #reshape optFeatureMap data
-    optFeatureMap = torch.cat((optRowFeatureMap, optColFeatureMap), dim=2)
-    zn, xn, yn = optFeatureMap.size()
-    optFeatureMap = optFeatureMap.view(zn, 1, xn, yn)
+    optFeatureMap = torch.stack((optRowFeatureMap, optColFeatureMap), dim=1)
     #reshap featureMap data
-    featureMap = torch.cat((rowFeatureMap, colFeatureMap), dim=2)
-    zn, xn, yn = featureMap.size()
-    featureMap = featureMap.view(zn, 1, xn, yn)
+    featureMap = torch.stack((rowFeatureMap, colFeatureMap), dim=1)
     return (labels, samples, featureMap, optFeatureMap)
 
 

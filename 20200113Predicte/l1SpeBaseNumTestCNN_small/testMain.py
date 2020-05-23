@@ -15,7 +15,7 @@ import pandas as pd
 sys.path.append(os.getcwd())
 sys.path.append(os.path.abspath(".."))
 
-import getSpeBaseL1
+import getSpeBaseL1_small
 import Predicte.myModules
 import Predicte.myUtils.myTrainTest
 import Predicte.myUtils.myData
@@ -27,13 +27,23 @@ def getFCNPams(rowNum, colNum, device, lr):
     lossFunc = nn.CrossEntropyLoss()
     return (fcn, optimizer, lossFunc)
 
-
+def getCNNPams(rowNum, colNum,device, lr):
+    cnnXout = Predicte.myUtils.myData.getCNNOutSize(rowNum.size()[2], 3, 2)
+    cnnYout = Predicte.myUtils.myData.getCNNOutSize(colNum.size()[3], 3, 2)
+    cnn = Predicte.myModules.CNN(inChannels=2,
+                         kernels=6,
+                         kernelSize=2,
+                         outSize=16 * cnnXout * cnnYout)
+    cnn = cnn.to(device)
+    optimizer = torch.optim.Adam(cnn.parameters(), lr=lr)
+    lossFunc = nn.CrossEntropyLoss()
+    return(cnn,optimizer,lossFunc)
 # end
 
 
 def main(runPams):
     # get samples, featureMap, optFeatureMap
-    olabel, samples, featureMap, optFeatureMap = getSpeBaseL1.main(
+    olabel, samples, featureMap, optFeatureMap = getSpeBaseL1_small.main(
         runPams)
     '''
     [print(olabel[i],samples[i]) for i in range(len(samples))]
@@ -42,11 +52,12 @@ def main(runPams):
     print("--------------------------------------------------")
     [print(olabel[i],optFeatureMap[i]) for i in range(len(optFeatureMap))]
     print("---------------------------------------------------------------")
+    '''
     print(olabel.size())
     print(samples.size())
     print(featureMap.size())
     print(optFeatureMap.size())
-    '''
+
     # choose spu or gpu automatically
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
@@ -60,22 +71,22 @@ def main(runPams):
         olabel, samples, fcn, device, optimizer, lossFunc, runPams)
 
     # featureMap data
-    fcn, optimizer, lossFunc = getFCNPams(
+    cnn, optimizer, lossFunc = getCNNPams(
         featureMap.size()[2],
         featureMap.size()[3],
         device,
         runPams.lr)
     fres, fytrue_ypred = Predicte.myUtils.myTrainTest.train_test(
-        olabel, featureMap, fcn, device, optimizer, lossFunc, runPams)
+        olabel, featureMap, cnn, device, optimizer, lossFunc, runPams)
 
     # optFeatureMap data
-    fcn, optimizer, lossFunc = getFCNPams(
+    cnn, optimizer, lossFunc = getCNNPams(
         optFeatureMap.size()[2],
         optFeatureMap.size()[3],
         device,
         runPams.lr)
     ores, oytrue_ypred = Predicte.myUtils.myTrainTest.train_test(
-        olabel, optFeatureMap, fcn, device, optimizer, lossFunc, runPams)
+        olabel, optFeatureMap, cnn, device, optimizer, lossFunc, runPams)
     # prepare results
 
     res = list()
@@ -103,7 +114,7 @@ def main(runPams):
     oytrue_ypred.columns = ["true", "pred"]
     timeStam = str(int(time.time()))
     #filePath = "C:\\Users\\pdang\\Desktop\\" + timeStam + ".xlsx"
-    filePath = "/N/project/zhangclab/pengtao/myProjectsDataRes/20200113Predicte/results/l1SpeBaseNumTest/block1/excelRes/" + timeStam + ".xlsx"
+    filePath = "/N/project/zhangclab/pengtao/myProjectsDataRes/20200113Predicte/results/l1SpeBaseNumTestCNN/block1_small/excelRes/" + timeStam + ".xlsx"
     writer = pd.ExcelWriter(filePath)  # 写入Excel文件
     resDF.to_excel(writer, index=False)
     sytrue_ypred.to_excel(writer, startcol=2, index=False)
@@ -131,7 +142,7 @@ if __name__ == "__main__":
     parser.add_argument("--n_cpu", type=int, default=os.cpu_count())
     parser.add_argument("--minusMean", type=int, default=0)
     parser.add_argument("--stdBias", type=int, default=0)
-    parser.add_argument("--numThreshold", type=int, default=2)
+    parser.add_argument("--numThreshold", type=int, default=7)
     parser.add_argument("--xn", type=int, default=20)
     parser.add_argument("--crType", type=str, default="norm")
     runPams = parser.parse_args()

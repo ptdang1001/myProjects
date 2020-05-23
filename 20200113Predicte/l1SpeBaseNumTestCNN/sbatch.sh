@@ -2,8 +2,8 @@
 
 #SBATCH -J L1Spe
 #SBATCH -p dl-debug
-#SBATCH -o /N/project/zhangclab/pengtao/myProjectsDataRes/20200113Predicte/results/l1SpeBaseNumTest/block1_small/res/testMain_%j.csv
-#SBATCH -e /N/project/zhangclab/pengtao/myProjectsDataRes/20200113Predicte/results/l1SpeBaseNumTest/block1_small/err/testMain_%j.err
+#SBATCH -o /N/project/zhangclab/pengtao/myProjectsDataRes/20200113Predicte/results/l1SpeBaseNumTestCNN/block1/res/testMain_%j.csv
+#SBATCH -e /N/project/zhangclab/pengtao/myProjectsDataRes/20200113Predicte/results/l1SpeBaseNumTestCNN/block1/err/testMain_%j.err
 #SBATCH --mail-type=ALL
 #SBATCH --mail-user=pdang@iu.edu
 #SBATCH --nodes=1

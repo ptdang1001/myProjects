@@ -27,7 +27,6 @@ def getFCNPams(rowNum, colNum, device, lr):
     lossFunc = nn.CrossEntropyLoss()
     return (fcn, optimizer, lossFunc)
 
-
 # end
 
 
@@ -103,7 +102,7 @@ def main(runPams):
     oytrue_ypred.columns = ["true", "pred"]
     timeStam = str(int(time.time()))
     #filePath = "C:\\Users\\pdang\\Desktop\\" + timeStam + ".xlsx"
-    filePath = "/N/project/zhangclab/pengtao/myProjectsDataRes/20200113Predicte/results/l1SpeBaseNumTest/block1_small/excelRes/" + timeStam + ".xlsx"
+    filePath = "/N/project/zhangclab/pengtao/myProjectsDataRes/20200113Predicte/results/l1SpeBaseNumTestFCN/block1_small/excelRes/" + timeStam + ".xlsx"
     writer = pd.ExcelWriter(filePath)  # 写入Excel文件
     resDF.to_excel(writer, index=False)
     sytrue_ypred.to_excel(writer, startcol=2, index=False)
