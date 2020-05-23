@@ -68,10 +68,10 @@ class AutoEncoder(nn.Module):
 
 #Fully Connected Network
 class FCN(nn.Module):
-    def __init__(self, size):
+    def __init__(self, rowNum,colNum):
         super(FCN, self).__init__()
         #self.pool = nn.MaxPool2d(2, 2)
-        self.fc1 = nn.Linear(size*size, 120)
+        self.fc1 = nn.Linear(rowNum*colNum, 120)
         self.fc2 = nn.Linear(120, 84)
         self.fc3 = nn.Linear(84, 50)
 

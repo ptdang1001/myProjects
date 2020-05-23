@@ -15,13 +15,13 @@ path = ""
 if platform.system() == "Windows":
     path = os.path.abspath("./Predicte")  #windos system
 else:
-    path = os.path.abspath("..")  #linux system
+    path = os.path.abspath("../Predicte")  #linux system
 sys.path.append(path)
 import myModules
 import myUtils.myData
 import myUtils.myTrainTest
 #import myUtils.myDraw
-import myUtils.getNormLall
+import myUtils.getNormLk
 
 # parameters
 parser = argparse.ArgumentParser()
@@ -101,7 +101,7 @@ def main():
     runPams.append(normBias)
     # l1c normal
 
-    olabel, odata, ssvdData, mapData = myUtils.getNormLall.main(runPams)
+    olabel, odata, ssvdData, mapData = myUtils.getNormLk.main(runPams)
     #[print(olabel[i], odata[i]) for i in range(12)]
 
     # original 2d data

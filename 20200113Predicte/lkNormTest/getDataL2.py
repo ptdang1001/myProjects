@@ -15,7 +15,7 @@ from itertools import permutations
 if platform.system() == "Windows":
     path = os.path.abspath("./Predicte")  #windos system
 else:
-    path = os.path.abspath("..")  #linux system
+    path = os.path.abspath("../Predicte")  #linux system
 import myData
 
 

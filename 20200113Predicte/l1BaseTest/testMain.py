@@ -10,7 +10,7 @@ import torch
 import torch.nn as nn
 
 # my libs
-path = os.path.abspath("..")
+path = os.path.abspath("../Predicte")
 sys.path.append(path)
 import myModules
 import myUtils.myData
