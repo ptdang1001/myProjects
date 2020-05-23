@@ -135,7 +135,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--batch_size",
         type=int,
-        default=10,
+        default=100,
     )
     parser.add_argument("--lr", type=float, default=0.0001)
     parser.add_argument("--n_cpu", type=int, default=os.cpu_count())

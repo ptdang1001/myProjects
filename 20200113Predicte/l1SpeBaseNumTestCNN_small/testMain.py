@@ -20,6 +20,7 @@ import Predicte.myModules
 import Predicte.myUtils.myTrainTest
 import Predicte.myUtils.myData
 
+
 def getFCNPams(rowNum, colNum, device, lr):
     fcn = Predicte.myModules.FCN(rowNum=rowNum, colNum=colNum)
     fcn = fcn.to(device)
@@ -27,17 +28,20 @@ def getFCNPams(rowNum, colNum, device, lr):
     lossFunc = nn.CrossEntropyLoss()
     return (fcn, optimizer, lossFunc)
 
-def getCNNPams(rowNum, colNum,device, lr):
+
+def getCNNPams(rowNum, colNum, device, lr):
     cnnXout = Predicte.myUtils.myData.getCNNOutSize(rowNum.size()[2], 3, 2)
     cnnYout = Predicte.myUtils.myData.getCNNOutSize(colNum.size()[3], 3, 2)
     cnn = Predicte.myModules.CNN(inChannels=2,
-                         kernels=6,
-                         kernelSize=2,
-                         outSize=16 * cnnXout * cnnYout)
+                                 kernels=6,
+                                 kernelSize=2,
+                                 outSize=16 * cnnXout * cnnYout)
     cnn = cnn.to(device)
     optimizer = torch.optim.Adam(cnn.parameters(), lr=lr)
     lossFunc = nn.CrossEntropyLoss()
-    return(cnn,optimizer,lossFunc)
+    return (cnn, optimizer, lossFunc)
+
+
 # end
 
 
@@ -52,11 +56,11 @@ def main(runPams):
     print("--------------------------------------------------")
     [print(olabel[i],optFeatureMap[i]) for i in range(len(optFeatureMap))]
     print("---------------------------------------------------------------")
-    '''
     print(olabel.size())
     print(samples.size())
     print(featureMap.size())
     print(optFeatureMap.size())
+    '''
 
     # choose spu or gpu automatically
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
@@ -94,7 +98,7 @@ def main(runPams):
         res.append("c*r-E")
     else:
         res.append("c*r")
-    res.append("N(0-" + str(runPams.stdBias/10) + ")")
+    res.append("N(0-" + str(runPams.stdBias / 10) + ")")
     res.append(runPams.xn)
     res.append(runPams.numThreshold)
     res.append("7*" + str(samples.size()[2]))
@@ -113,7 +117,7 @@ def main(runPams):
     oytrue_ypred = pd.DataFrame(oytrue_ypred)
     oytrue_ypred.columns = ["true", "pred"]
     timeStam = str(int(time.time()))
-    #filePath = "C:\\Users\\pdang\\Desktop\\" + timeStam + ".xlsx"
+    # filePath = "C:\\Users\\pdang\\Desktop\\" + timeStam + ".xlsx"
     filePath = "/N/project/zhangclab/pengtao/myProjectsDataRes/20200113Predicte/results/l1SpeBaseNumTestCNN/block1_small/excelRes/" + timeStam + ".xlsx"
     writer = pd.ExcelWriter(filePath)  # 写入Excel文件
     resDF.to_excel(writer, index=False)
@@ -136,9 +140,9 @@ if __name__ == "__main__":
     parser.add_argument(
         "--batch_size",
         type=int,
-        default=10,
+        default=100,
     )
-    parser.add_argument("--lr", type=float, default=0.0001)
+    parser.add_argument("--lr", type=float, default=0.0002)
     parser.add_argument("--n_cpu", type=int, default=os.cpu_count())
     parser.add_argument("--minusMean", type=int, default=0)
     parser.add_argument("--stdBias", type=int, default=0)
