@@ -21,7 +21,7 @@ def main(runPams):
     mean = 0
     blockNum = 1
     replace = 0
-    zn = 4
+    zn = 1
     yn = runPams.xn
     totalRow = 50
     totalCol = totalRow

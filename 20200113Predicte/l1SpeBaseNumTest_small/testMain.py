@@ -131,7 +131,7 @@ if __name__ == "__main__":
     parser.add_argument("--n_cpu", type=int, default=os.cpu_count())
     parser.add_argument("--minusMean", type=int, default=0)
     parser.add_argument("--stdBias", type=int, default=0)
-    parser.add_argument("--numThreshold", type=int, default=2)
+    parser.add_argument("--numThreshold", type=int, default=3)
     parser.add_argument("--xn", type=int, default=20)
     parser.add_argument("--crType", type=str, default="norm")
     runPams = parser.parse_args()
