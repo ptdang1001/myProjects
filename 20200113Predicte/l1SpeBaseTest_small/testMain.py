@@ -9,7 +9,7 @@ import sys
 import time
 import os
 
-path = os.path.abspath("..")
+path = os.path.abspath("../Predicte")
 sys.path.append(path)
 import myUtils.getSpeBaseL1_small
 import myUtils.myTrainTest

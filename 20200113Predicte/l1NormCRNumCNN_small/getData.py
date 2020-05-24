@@ -21,12 +21,12 @@ def main(runPams):
     mean = 0
     blockNum = 1
     replace = 0
-    zn = 1
+    zn = 10
     yn = runPams.xn
     totalRow = 50
     totalCol = totalRow
     overlap = 0
-    probType = "l1Spe"
+    probType = "l1"
     # partitions
     labels_datas = Predicte.myUtils.myData.getL1SpeBaseData(runPams.crType, runPams.minusMean,
                                            blockNum, zn, runPams.xn, yn,
@@ -37,5 +37,5 @@ def main(runPams):
     datas = torch.stack(list(map(Predicte.myUtils.myData.shuffleData, datas)))
     # get samples, featureMap, optFeatureMap
     labels, samples, featureMap, optFeatureMap = Predicte.myUtils.myData.getSamplesFeature(
-        probType, mean, runPams.stdBias/10, runPams.numThreshold, datas, totalRow, totalCol)
+        probType, mean, runPams.sampleNum ,runPams.stdBias/10, runPams.numThreshold, datas, totalRow, totalCol)
     return (labels, samples, featureMap, optFeatureMap)

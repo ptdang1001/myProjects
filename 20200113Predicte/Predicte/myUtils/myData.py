@@ -112,7 +112,7 @@ class Mtrx23dMap():
 # end
 
 
-def getSamplesFeature(probType, mean, stdBias, numThreshold, partitions,
+def getSamplesFeature(probType, mean, sampleNum, stdBias, numThreshold, partitions,
                       totalRow, totalCol):
     # l1 bases
     bases = []
@@ -145,10 +145,14 @@ def getSamplesFeature(probType, mean, stdBias, numThreshold, partitions,
                                          hight=totalCol - 1,
                                          row=2,
                                          col=len(bases[0]),
-                                         number=500)
+                                         number=sampleNum)
     # get all base mtrx
-    scorePath = "/N/project/zhangclab/pengtao/myProjectsDataRes/20200113Predicte/data/consisBasesScores.npy"
-    #scorePath = "C:\\Users\\pdang\\Desktop\\consisBasesScores.npy"
+    #consisBasesScoresL1 = getConsistencyScoreMtrx(basesMtrx)
+    #consisBasesScoresL1 = np.array(consisBasesScoresL1)
+    #np.save("C:\\Users\\pdang\\Desktop\\consisBasesScoresL1.npy",consisBasesScoresL1)
+
+    scorePath = "/N/project/zhangclab/pengtao/myProjectsDataRes/20200113Predicte/data/consisBasesScoresL1.npy"
+    #scorePath = "C:\\Users\\pdang\\Desktop\\consisBasesScoresL1.npy"
     consisBasesScores = torch.tensor(np.load(scorePath))
     mtx2map = Mtrx23dMap(baseTypeNum, basesMtrx, totalRow, totalCol,
                          randomRowColIdx)
@@ -157,7 +161,7 @@ def getSamplesFeature(probType, mean, stdBias, numThreshold, partitions,
     samples = addDataError(samples, mean, stdBias)
     zn, xn, yn = samples.size()
     samples = samples.view(zn, 1, xn, yn)
-    labels, samples = addNumMeanNoise(samples, labels, int(len(samples) / 10),
+    labels, samples = addNumMeanNoise(samples, labels, int(len(samples) / 20),
                                       mean, stdBias)
     zn, _, xn, yn = samples.size()
     rowFeatureMap, colFeatureMap = mtx2map.getRowColFeatureMapNoMaxPooling(samples.view(zn, xn, yn))
@@ -181,7 +185,6 @@ def getSamplesFeature(probType, mean, stdBias, numThreshold, partitions,
 
 # end
 
-
 def nonZeroNum(sample):
     if len(torch.nonzero(sample)) >= 6:
         return (len(torch.nonzero(sample)))
@@ -193,8 +196,7 @@ def nonZeroNum(sample):
 
 
 def getLabelsFrmSamples(samples):
-    labels = list(map(nonZeroNum, samples))
-    labels = torch.tensor(labels)
+    labels = torch.tensor(list(map(nonZeroNum, samples)))
     return (labels)
 
 
@@ -246,17 +248,15 @@ def get3dMap(probType, totalRow, totalCol, datas):
 
 # end
 
-
 def delFeature(fTmp, idx, scoreTmp, conThreshold):
-    colNum = scoreTmp.size()[1]
-    saveIdx = [i for i in range(colNum) if scoreTmp[idx][i] <= conThreshold]
-    fTmp = fTmp[saveIdx]
+    saveIdx = torch.le(scoreTmp[idx], conThreshold).nonzero()
+    saveIdx = saveIdx.view(saveIdx.size()[0])
+    fTmp = torch.index_select(fTmp, 0, saveIdx)
     scoreTmp = scoreTmp[np.ix_(saveIdx, saveIdx)]
     return (fTmp, scoreTmp)
 
 
 # end
-
 
 def getOptFeatureMap(f_b_n):
     feature, basesConsisScores, numThreshold = f_b_n[0], f_b_n[1], f_b_n[2]
@@ -282,9 +282,9 @@ def getOptFeatureMap(f_b_n):
         if c == colNum:
             break
         fSort = fSort[:, 1:]
-    maxLen = max([(len(f)) for f in optFeatures])
-    for f in optFeatures:
-        f.extend(0.0 for _ in range(maxLen - len(f)))
+    #maxLen = max([(len(f)) for f in optFeatures])
+    #for f in optFeatures:
+    #  f.extend(0.0 for _ in range(maxLen - len(f)))
     return (optFeatures)
 
 
@@ -328,7 +328,6 @@ def getBasesMtrxs(bases):
 
 
 # end
-
 
 def getConsistencyScoreMtrx(basesMtrx):
     conBasesMtrx = basesMtrx.t().clone()
