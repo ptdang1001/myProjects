@@ -21,12 +21,12 @@ def main(runPams):
     mean = 0
     blockNum = 1
     replace = 0
-    zn = 10
+    zn = 1
     yn = runPams.xn
     totalRow = 50
     totalCol = totalRow
     overlap = 0
-    probType = "l1"
+    probType = "l1Spe"
     # partitions
     labels_datas = Predicte.myUtils.myData.getL1SpeBaseData(runPams.crType, runPams.minusMean,
                                            blockNum, zn, runPams.xn, yn,

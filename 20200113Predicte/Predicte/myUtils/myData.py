@@ -5,6 +5,8 @@
 # 3rd libs
 import torch
 import numpy as np
+from numba import jit
+from numba.typed import List
 # my libs
 
 # gene dataset loader
@@ -36,8 +38,63 @@ class MyDataset(Dataset):
 
 # end
 
+def getMaxIdx(corectEf, num):
+    maxIdx = np.argpartition(corectEf.ravel(), -num)[-num:]
+    maxIdx = np.unravel_index(maxIdx, corectEf.shape)
+    maxIdx = List(set(np.append(maxIdx[0], maxIdx[1])))
+    return (maxIdx)
 
-class Mtrx23dMap():
+
+@jit(nopython=True)
+def addNantoEf(corectEf):
+    for i in range(corectEf.shape[1]):
+        for j in range(i, corectEf.shape[0]):
+            corectEf[j][i] = np.nan
+    return (corectEf)
+
+
+# end
+
+@jit(nopython=True)
+def getLabelFrRCIdx(rowIdx, colIdx, patternLen):
+    rn = 0
+    cn = 0
+    for i in rowIdx:
+        if i < patternLen:
+            rn += 1
+    for i in colIdx:
+        if i < patternLen:
+            cn += 1
+    return (rn * cn)
+
+
+# @jit
+def mateData2Parts(mateData):
+    partRowNum = 50
+    patternLen = 50
+    partColNum = partRowNum
+    labels_parts = list()
+    loopNum = int(mateData.shape[0] / partRowNum)
+    for i in range(loopNum):
+        colCorectEf = np.corrcoef(mateData[0:5, :].T)
+        colCorectEf[np.tril_indices(colCorectEf.shape[0], 0)] = np.nan
+        colMaxIdx = getMaxIdx(colCorectEf, partColNum - 1)
+        rowCorectEf = np.corrcoef(mateData[:, colMaxIdx])
+        rowCorectEf[np.tril_indices(rowCorectEf.shape[0], 0)] = np.nan
+        # rowCorectEf = addNantoEf(rowCorectEf)
+        rowMaxIdx = getMaxIdx(rowCorectEf, partRowNum - 1)
+        part = mateData[np.ix_(rowMaxIdx, colMaxIdx)]
+        label = getLabelFrRCIdx(rowMaxIdx, colMaxIdx, patternLen)
+        if len(part) == partRowNum:
+            labels_parts.append([label, part])
+        mateData = np.delete(mateData, rowMaxIdx, axis=0)
+        mateData = np.delete(mateData, colMaxIdx, axis=1)
+    return (labels_parts)
+
+
+# end
+
+class Part23dMap():
     def __init__(self, baseTypeNum, bases, totalRow, totalCol,
                  randomRowColIdx):
         self.baseTypeNum = baseTypeNum
@@ -60,8 +117,8 @@ class Mtrx23dMap():
     # end
 
     def getBaseMap(self, samples):
-        rowFeature = torch.matmul(samples, self.bases.float())
-        colFeature = torch.matmul(samples.permute(0, 2, 1), self.bases.float())
+        rowFeature = samples * self.bases.float()
+        colFeature = samples.transpose(0, 2, 1) * self.bases.float()
         baseFeature = torch.cat((rowFeature, colFeature), 0)  # 1000x7xm
         # max pooling
         finalMap = [
@@ -76,9 +133,8 @@ class Mtrx23dMap():
     # end
 
     def getRowColFeatureMapNoMaxPooling(self, samples):
-        rowFeatureMap = torch.matmul(samples, self.bases.float())
-        colFeatureMap = torch.matmul(samples.permute(0, 2, 1),
-                                     self.bases.float())
+        rowFeatureMap = np.matmul(samples, self.bases.astype(np.float64))
+        colFeatureMap = np.matmul(samples.transpose(0, 2, 1), self.bases.astype(np.float64))
         # rowColFeatureMap = torch.stack((rowFeatureMap, colFeatureMap),1)  # 2*500*7*M->500*2*7*M
         return (rowFeatureMap, colFeatureMap)
 
@@ -89,7 +145,7 @@ class Mtrx23dMap():
             partition[np.ix_(rowIdx, colIdx)]
             for rowIdx, colIdx in self.randomRowColIdx
         ]
-        samples = torch.stack(samples)
+        samples = np.stack(samples)
         return (samples)
 
     # end
@@ -147,14 +203,14 @@ def getSamplesFeature(probType, mean, sampleNum, stdBias, numThreshold, partitio
                                          col=len(bases[0]),
                                          number=sampleNum)
     # get all base mtrx
-    #consisBasesScoresL1 = getConsistencyScoreMtrx(basesMtrx)
-    #consisBasesScoresL1 = np.array(consisBasesScoresL1)
-    #np.save("C:\\Users\\pdang\\Desktop\\consisBasesScoresL1.npy",consisBasesScoresL1)
+    # consisBasesScoresL1 = getConsistencyScoreMtrx(basesMtrx)
+    # consisBasesScoresL1 = np.array(consisBasesScoresL1)
+    # np.save("C:\\Users\\pdang\\Desktop\\consisBasesScoresL1.npy",consisBasesScoresL1)
 
-    scorePath = "/N/project/zhangclab/pengtao/myProjectsDataRes/20200113Predicte/data/consisBasesScoresL1.npy"
-    #scorePath = "C:\\Users\\pdang\\Desktop\\consisBasesScoresL1.npy"
+    # scorePath = "/N/project/zhangclab/pengtao/myProjectsDataRes/20200113Predicte/data/consisBasesScoresL1.npy"
+    scorePath = "C:\\Users\\pdang\\Desktop\\consisBasesScoresL1.npy"
     consisBasesScores = torch.tensor(np.load(scorePath))
-    mtx2map = Mtrx23dMap(baseTypeNum, basesMtrx, totalRow, totalCol,
+    mtx2map = Part23dMap(baseTypeNum, basesMtrx, totalRow, totalCol,
                          randomRowColIdx)
     samples = torch.cat(list(map(mtx2map.getSamples, partitions)))
     labels = torch.tensor(list(map(nonZeroNum, samples)))
@@ -170,6 +226,7 @@ def getSamplesFeature(probType, mean, sampleNum, stdBias, numThreshold, partitio
     # get opt row and col
     rFM_cBS_nT = [[rfm, consisBasesScores, numThreshold] for rfm in rowFeatureMap]
     cFM_cBS_nT = [[cfm, consisBasesScores, numThreshold] for cfm in colFeatureMap]
+
     optRowFeatureMap = list(map(getOptFeatureMap, rFM_cBS_nT))
     optColFeatureMap = list(map(getOptFeatureMap, cFM_cBS_nT))
     # complete row and col to the same col number
@@ -203,7 +260,7 @@ def getLabelsFrmSamples(samples):
 # end
 
 
-def get3dMap(probType, totalRow, totalCol, datas):
+def get3dMap(part, numThreshold=30, probType="l1", partRow=50, partCol=50):
     # l1 bases
     bases = list()
     if probType == "l1c":
@@ -231,37 +288,63 @@ def get3dMap(probType, totalRow, totalCol, datas):
         base4 = [2, 1, 1, -1, -1, -2, 0]
         bases = [base1, base2, base3, base4]
     baseTypeNum, basesMtrx = getBasesMtrxs(bases)
+
     randomRowColIdx = getRandomRowColIdx(low=0,
-                                         hight=totalCol - 1,
+                                         hight=partRow - 1,
                                          row=2,
-                                         col=len(bases[0]),
+                                         col=7,
                                          number=500)
 
     # mtx2map entity
-    mtx2map = Mtrx23dMap(baseTypeNum, basesMtrx, totalRow, totalCol,
-                         randomRowColIdx)
+    part2map = Part23dMap(baseTypeNum, basesMtrx, partRow, partCol,
+                          randomRowColIdx)
+    samples = part2map.getSamples(part)
 
-    mapDatas = list(map(mtx2map.main, datas))
-    mapDatas = torch.stack(mapDatas, 0)
-    return (mapDatas)
+    # get all base mtrx
+    # consisBasesScoresL1 = getConsistencyScoreMtrx(basesMtrx)
+    # consisBasesScoresL1 = np.array(consisBasesScoresL1)
+    # np.save("C:\\Users\\pdang\\Desktop\\consisBasesScoresL1.npy",consisBasesScoresL1)
+    scorePath = "/N/project/zhangclab/pengtao/myProjectsDataRes/20200113Predicte/data/consisBasesScoresL1.npy"
+    #scorePath = "C:\\Users\\pdang\\Desktop\\consisBasesScoresL1.npy"
+    consisBasesScores = np.load(scorePath)
+    rowFeatureMap, colFeatureMap = part2map.getRowColFeatureMapNoMaxPooling(samples)
+    # combine row and col
+
+    # get opt row and col
+    rFM_cBS_nT = [[rfm, consisBasesScores, numThreshold] for rfm in rowFeatureMap]
+    cFM_cBS_nT = [[cfm, consisBasesScores, numThreshold] for cfm in colFeatureMap]
+
+    optRowFeatureMap = list(map(getOptFeatureMap, rFM_cBS_nT))
+    optColFeatureMap = list(map(getOptFeatureMap, cFM_cBS_nT))
+    # complete row and col to the same col number
+    # optRowFeatureMap = completeData2SameColLen(optRowFeatureMap)
+    # optColFeatureMap = completeData2SameColLen(optColFeatureMap)
+    # combine opt row and col to one
+    # reshape optFeatureMap data
+    optFeatureMap = torch.from_numpy(np.vstack((optRowFeatureMap, optColFeatureMap)))
+    # reshap featureMap data
+    featureMap = torch.from_numpy(np.vstack((rowFeatureMap, colFeatureMap)))
+    return ([featureMap, optFeatureMap])
 
 
 # end
-
+@jit
 def delFeature(fTmp, idx, scoreTmp, conThreshold):
-    saveIdx = torch.le(scoreTmp[idx], conThreshold).nonzero()
-    saveIdx = saveIdx.view(saveIdx.size()[0])
-    fTmp = torch.index_select(fTmp, 0, saveIdx)
+    saveIdx = list()
+    for j in np.arange(scoreTmp.shape[1]):
+        if scoreTmp[idx][j] <= conThreshold:
+            saveIdx.append(j)
+    fTmp = fTmp[saveIdx]
     scoreTmp = scoreTmp[np.ix_(saveIdx, saveIdx)]
     return (fTmp, scoreTmp)
 
 
 # end
 
-def getOptFeatureMap(f_b_n):
+def getOptFeatureMap_old(f_b_n):
     feature, basesConsisScores, numThreshold = f_b_n[0], f_b_n[1], f_b_n[2]
-    fSort = feature.t().clone()  # 7*M->M*7
-    fSort = torch.sort(fSort)
+    fSort = feature.T.copy()  # 7*M->M*7
+    fSort = np.sort(fSort)
     fSort = fSort[0]
     # rowNum = fSort.size()[0]
     colNum = fSort.size()[1]
@@ -282,13 +365,36 @@ def getOptFeatureMap(f_b_n):
         if c == colNum:
             break
         fSort = fSort[:, 1:]
-    #maxLen = max([(len(f)) for f in optFeatures])
-    #for f in optFeatures:
+    # maxLen = max([(len(f)) for f in optFeatures])
+    # for f in optFeatures:
     #  f.extend(0.0 for _ in range(maxLen - len(f)))
     return (optFeatures)
 
 
 # end
+@jit
+def getOptFeatureMap(f_b_n):
+    feature, basesConsisScores, numThreshold = f_b_n[0], f_b_n[1], f_b_n[2]
+    fSort = feature.T.copy()  # 7*M->M*7
+    fSort = np.sort(fSort)
+    colNum = fSort.shape[1]
+    optFeatures = list()
+    for c in np.arange(colNum):
+        fMaxMeans = List()
+        fTmp = fSort.copy()
+        scoreTmp = basesConsisScores.copy()
+        for i in np.arange(1000):
+            fMean = np.mean(fTmp, axis=1)
+            fMaxMean, fMaxIdx = np.max(fMean, 0), np.argmax(fMean, 0)
+            fMaxMeans.append(fMaxMean)
+            if len(fMaxMeans) == numThreshold:
+                break
+            fTmp, scoreTmp = delFeature(fTmp, fMaxIdx, scoreTmp, 2)
+        optFeatures.append(fMaxMeans)
+        if c == colNum:
+            break
+        fSort = fSort[..., 1:]
+    return (optFeatures)
 
 
 # sparse ssvd
@@ -302,6 +408,8 @@ def ssvd(x, r=1):
     sptopreconstruct = torch.tensor(sptopreconstruct)
     return (sptopreconstruct)
 
+
+# end
 
 # end
 
@@ -319,9 +427,9 @@ def getBaseMtrx(base):
 
 def getBasesMtrxs(bases):
     from itertools import accumulate
-    basesMtrxs = [torch.tensor(getBaseMtrx(base)) for base in bases]
+    basesMtrxs = [getBaseMtrx(base) for base in bases]
     baseTypeNum = [basesMtrx.shape[1] for basesMtrx in basesMtrxs]
-    basesMtrx = torch.cat(basesMtrxs, 1)  # to 7x(m1+m2+m3)
+    basesMtrx = np.hstack(basesMtrxs)  # to 7x(m1+m2+m3)
     baseTypeNum = np.insert(baseTypeNum, 0, 0)
     baseTypeNum = list(accumulate(baseTypeNum))
     return (baseTypeNum, basesMtrx)
@@ -561,63 +669,84 @@ def getLkNormData(lk, normalBias, minusMean, num, zn, xn, yn, totalRow,
 
 
 #  get l1 base blocks data background noise is gaussian noise
-def getL1SpeBaseData(crType, minusMean, blockNum, zn, xn, yn, totalRow, totalCol,
+def getL1SpeBaseData(crType, minusMean, errorStdBias, blockNum, baseTimes, zn, xn, yn, totalRow, totalCol,
                      overlap, replace):
     blocksNum = blockNum * zn
+    mean = 0
+    errorStd = torch.zeros(xn, yn).add_(errorStdBias)
+    error = torch.normal(mean, errorStd)
     blocks = list()
     bases = list()
     if crType == "uniform":
-        if minusMean == 0:
+        if minusMean == 1:
             for _ in range(blocksNum):
                 c = torch.rand(xn, 1)
                 r = torch.rand(1, xn)
-                blocks.append(torch.matmul(c, r))
+                block = torch.matmul(c, r) * baseTimes
+                block = block - torch.mean(block)
+                blocks.append((block + error).numpy())
         else:
             for _ in range(blocksNum):
                 c = torch.rand(xn, 1)
                 r = torch.rand(1, xn)
-                block = torch.matmul(c, r)
-                block = block - torch.mean(block)
-                blocks.append(block)
+                blocks.append((torch.matmul(c, r) * baseTimes + error).numpy())
     elif crType == "norm":
-        if minusMean == 0:
+        if minusMean == 1:
             for _ in range(blocksNum):
                 c = torch.randn(xn, 1)
                 r = torch.randn(1, xn)
-                blocks.append(torch.matmul(c, r))
+                block = torch.matmul(c, r) * baseTimes
+                block = block - torch.mean(block)
+                blocks.append((block + error).numpy())
         else:
             for _ in range(blocksNum):
                 c = torch.randn(xn, 1)
                 r = torch.randn(1, xn)
+                blocks.append((torch.matmul(c, r) * baseTimes + error).numpy())
+    else:
+        base1 = [1]
+        base2 = [-1]
+        base3 = [0]
+        bases = [base1, base2, base3]
+        if minusMean == 0:
+            for _ in range(blocksNum):
+                randomIdx = torch.tensor(np.random.choice(range(xn), xn, replace=False)).long()
+                c = bases[randomIdx].view(xn, 1).float()
+                r = torch.randn(1, xn)
+                blocks.append(torch.matmul(c, r))
+            else:
+                for _ in range(blocksNum):
+                    randomIdx = torch.tensor(np.random.choice(range(xn), xn, replace=False)).long()
+                c = bases[randomIdx].view(xn, 1).float()
+                r = torch.randn(1, xn)
                 block = torch.matmul(c, r)
                 block = block - torch.mean(block)
                 blocks.append(block)
-    else:
-        pass
-    blocks = torch.stack(blocks).view(blockNum, zn, xn, yn)
-    # zero noise parameters
-    # gaussianNoise = torch.randn(zn, totalRow, totalCol)
-    # gaussianNoise = gaussianNoise - torch.mean(gaussianNoise)
-    zeroNoise = torch.zeros(zn, totalRow, totalCol)  # zero background noise
+    blocks = np.stack(blocks)
+    blocks = np.reshape(blocks, (blockNum, zn, xn, yn))
+    # noise parameters
+    gaussianNoise = np.random.randn(zn, totalRow, totalCol)
+    gaussianNoise = gaussianNoise - np.mean(gaussianNoise)
+    # zeroNoise = torch.zeros(zn, totalRow, totalCol)  # zero background noise
     labels_datas = list()
     for i in range(1, blockNum + 1):
         label = i
-        addNoiseRes = merge2Mtrx(blocks[0], zeroNoise, 0, 0, replace)
+        addNoiseRes = merge2Mtrx(blocks[0], gaussianNoise, 0, 0, replace)
         if i == 1:
-            labels_datas.append([label, addNoiseRes.clone()])
+            labels_datas.append([label, addNoiseRes.copy()])
             continue
         if overlap == 0:
             r, c = xn, yn
             for j in range(1, i):
                 addNoiseRes = merge2Mtrx(blocks[j], addNoiseRes, r, c, replace)
                 r, c = r + xn, c + yn
-            labels_datas.append([label, addNoiseRes.clone()])
+            labels_datas.append([label, addNoiseRes.copy()])
         else:
             r, c = int(xn / 2) + 1, int(yn / 2) + 1
             for j in range(1, i):
                 addNoiseRes = merge2Mtrx(blocks[j], addNoiseRes, r, c, 1)
                 r, c = r + int(xn / 2) + 1, c + int(yn / 2) + 1
-            labels_datas.append([label, addNoiseRes.clone()])
+        labels_datas.append([label, addNoiseRes.copy()])
     return (labels_datas)
 
 
