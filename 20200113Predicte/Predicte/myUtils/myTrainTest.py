@@ -5,6 +5,7 @@ import sys
 import os
 
 # third part libs
+import numpy as np
 import torch
 from torch.autograd import Variable
 from torch.utils.data import DataLoader
@@ -36,10 +37,10 @@ def train_test(label, data, Net, device, optimizer, lossFunc, opt):
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
-    #train end
+    # train end
 
     # ----------------------------------------------------------test-----------------------------------------
-    #test start
+    # test start
     dataSet = myData.MyDataset(testData, testLabel)
     dataLoader = DataLoader(dataset=dataSet,
                             batch_size=opt.batch_size,
@@ -68,9 +69,49 @@ def train_test(label, data, Net, device, optimizer, lossFunc, opt):
         F1 += myEvaluation.get_F1(b_y, predicted)
         JS += myEvaluation.get_JS(b_y, predicted)
         length += 1
-    #test end
+    # test end
 
     res = [rmse, acc, SE, PC, F1, JS]
     res = [round(r / length, 2) for r in res]
     # res = ','.join(str(i) for i in res)
     return (res, ytrue_ypred)
+
+
+# end
+
+def train_test_AE(data, net, device, optimizer, lossFunc, opt):
+    dataSet = myData.MyDataset(data, data)
+    dataLoader = DataLoader(dataset=dataSet,
+                            batch_size=opt.batch_size,
+                            shuffle=False,
+                            num_workers=opt.n_cpu,
+                            pin_memory=torch.cuda.is_available())
+    # train start
+    for epoch in range(opt.n_epochs):
+        for step, (x, _) in enumerate(dataLoader):
+            b_x = Variable(x.view(-1, 1 * 7 * 16).float().to(device))  # batch data
+            encoded, decoded, _ = net(b_x)
+            loss = lossFunc(decoded, b_x)
+            optimizer.zero_grad()
+            loss.backward()
+            optimizer.step()
+
+            if step % 10 == 9:
+                print('Epoch: ', epoch, '| train loss: %.4f' % loss.data.numpy())
+    # train end
+
+    # ----------------------------------------------------------test-----------------------------------------
+    # test start
+
+    predLabels = list()
+    for (x, y) in dataLoader:
+        b_x = Variable(x.view(-1, 1 * 7 * 16).float().to(device))  # batch x (data)
+        _, _, label = net(b_x)
+        predicted = torch.max(label.data, 1)[1].cpu()
+        predLabels.append([predicted.numpy()])
+
+    # test end
+    predLabels = np.concatenate(predLabels, axis=1)
+    # res = ','.join(str(i) for i in res)
+    return (predLabels)
+# end

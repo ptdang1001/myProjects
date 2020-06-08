@@ -5,6 +5,7 @@ import argparse
 import sys
 import time
 import os
+from multiprocessing import Pool
 
 # third part lib
 import torch
@@ -19,6 +20,25 @@ sys.path.append(os.path.abspath(".."))
 import Predicte.myModules
 import Predicte.myUtils.myTrainTest
 import Predicte.myUtils.myData
+
+# parameters
+parser = argparse.ArgumentParser()
+parser.add_argument("--n_epochs", type=int, default=20)
+if torch.cuda.is_available():
+    parser.add_argument("--batch_size", type=int, default=256)
+else:
+    parser.add_argument("--batch_size", type=int, default=os.cpu_count())
+parser.add_argument("--lr", type=float, default=0.0002)
+parser.add_argument("--n_cpu", type=int, default=os.cpu_count())
+parser.add_argument("--minusMean", type=int, default=1)
+parser.add_argument("--stdBias", type=int, default=0)
+parser.add_argument("--numThreshold", type=int, default=30)
+parser.add_argument("--xn", type=int, default=50)
+parser.add_argument("--crType", type=str, default="uniform")
+parser.add_argument("--sampleNum", type=int, default=500)
+parser.add_argument("--baseTimes", type=int, default=3)
+parser.add_argument("--errorStdBias", type=int, default=0 / 10)
+runPams = parser.parse_args()
 
 
 def getFCNPams(rowNum, colNum, device, lr):
@@ -43,145 +63,142 @@ def getCNNPams(zn, xn, yn, device, lr):
 
 
 # end
-def getData(runPams):
+
+def getAEPams(zn, xn, yn, device, lr):
+    AE = Predicte.myModules.AutoEncoder(zn, xn, yn)
+    AE = AE.to(device)
+    optimizer = torch.optim.Adam(AE.parameters(), lr=lr)
+    lossFunc = nn.MSELoss()
+    return (AE, optimizer, lossFunc)
+
+
+# end
+
+
+def main():
     # parameters
     mean = 0
     minusMean = 1
     blockNum = 1
     replace = 0
-    zn = 100
+    zn = 1
     yn = runPams.xn
     totalRow = 1000
     totalCol = totalRow
     overlap = 0
     probType = "l1"
     # partitions
+
     labels_mateDatas = Predicte.myUtils.myData.getL1SpeBaseData(runPams.crType, minusMean, runPams.errorStdBias,
                                                                 blockNum, runPams.baseTimes, zn, runPams.xn, yn,
                                                                 totalRow, totalCol, overlap,
                                                                 replace)
     mateDatas = list(labels_mateDatas[-1][-1])
 
-    labels_parts = list(map(Predicte.myUtils.myData.mateData2Parts, mateDatas))
-    labels = list()
-    parts = list()
-    for i in range(len(labels_parts)):
-        for j in range(len(labels_parts[0])):
-            labels.append(labels_parts[i][j][0])
-            parts.append(labels_parts[i][j][1])
-    featureMap_optFeatureMap = list(map(Predicte.myUtils.myData.get3dMap, parts))
-    featureMap = list()
-    optFeatureMap = list()
-    for fo in featureMap_optFeatureMap:
-        featureMap.append(fo[0])
-        optFeatureMap.append(fo[1])
-    featureMap=torch.stack(featureMap)
-    optFeatureMap = torch.stack(optFeatureMap)
-    parts = np.stack(parts)
-    parts = torch.from_numpy(parts).view(parts.shape[0], 1, parts.shape[1], parts.shape[2])
-    return (labels, parts, featureMap, optFeatureMap)
+    mateData = pd.DataFrame(mateDatas[0])
+    #mateData = pd.DataFrame(np.random.rand(1000, 1000))
 
-
-# end
-
-def main(runPams):
-    timeStam = str(int(time.time()))
-    # saveExcelPath = "C:\\Users\\pdang\\Desktop\\" + timeStam + ".xlsx"
-    saveExcelPath = "/N/project/zhangclab/pengtao/myProjectsDataRes/20200113Predicte/results/l1UniformWholeTest_small/block1/excelRes/" + timeStam + ".xlsx"
-    # st = time.time()
-    # get parts, featureMap, optFeatureMap
-    olabel, parts, featureMap, optFeatureMap = getData(runPams)
-
-    # choose spu or gpu automatically
-    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-
-    # parts data
-    net, optimizer, lossFunc = getCNNPams(
-        parts.size()[1],
-        parts.size()[2],
-        parts.size()[3],
-        device,
-        runPams.lr)
-    press, sytrue_ypred = Predicte.myUtils.myTrainTest.train_test(
-        olabel, parts, net, device, optimizer, lossFunc, runPams)
-
-    # featureMap data
-    net, optimizer, lossFunc = getCNNPams(
-        featureMap.size()[1],
-        featureMap.size()[2],
-        featureMap.size()[3],
-        device,
-        runPams.lr)
-    fres, fytrue_ypred = Predicte.myUtils.myTrainTest.train_test(
-        olabel, featureMap, net, device, optimizer, lossFunc, runPams)
-    # optFeatureMap data
-    net, optimizer, lossFunc = getCNNPams(
-        optFeatureMap.size()[1],
-        optFeatureMap.size()[2],
-        optFeatureMap.size()[3],
-        device,
-        runPams.lr)
-    ores, oytrue_ypred = Predicte.myUtils.myTrainTest.train_test(
-        olabel, optFeatureMap, net, device, optimizer, lossFunc, runPams)
-    # prepare results
-
+    parts = Predicte.myUtils.myData.mateData2Parts(mateData.copy())
     res = list()
-    if runPams.minusMean == 1:
-        res.append("c*r-E")
-    else:
-        res.append("c*r")
-    res.append(runPams.xn)
-    res.append("N(0-" + str(runPams.stdBias / 10) + ")")
-    res.append(runPams.baseTimes)
-    res.append(runPams.numThreshold)
-    res.append("50*" + str(parts.size()[2]))
-    res.append(press)
-    res.append('*'.join(str(i) for i in featureMap.size()))
-    res.append(fres)
-    res.append("*".join(str(i) for i in optFeatureMap.size()))
-    res.append(ores)
-    # save data to excel
-    resDF = pd.DataFrame(res)
-    resDF.columns = ["res"]
-    sytrue_ypred = pd.DataFrame(sytrue_ypred)
-    sytrue_ypred.columns = ["true", "pred"]
-    cytrue_ypred = pd.DataFrame(fytrue_ypred)
-    cytrue_ypred.columns = ["true", "pred"]
-    oytrue_ypred = pd.DataFrame(oytrue_ypred)
-    oytrue_ypred.columns = ["true", "pred"]
+    with Pool(os.cpu_count()) as p:
+        res = p.map(Predicte.myUtils.myData.getSamplesRowColStd, parts)
+    # splite samples, samplesArr, rowStdArr, colStdArr from res
+    samples = list()
+    samplesArr = list()
+    rowStdArr = list()
+    colStdArr = list()
+    for r in res:
+        samples.append(r[0])
+        samplesArr.append(r[1])
+        rowStdArr.append(r[2])
+        colStdArr.append(r[3])
+    samplesArr = np.stack(samplesArr)
+    rowStdArr = np.stack(rowStdArr)
+    colStdArr = np.stack(colStdArr)
+    
+    # get bases matrix
+    basesMtrx, baseTypeNumAfterKmean, baseIdAfterKMeans = Predicte.myUtils.myData.getBasesMtrxAfterKmean()
+    # get row and col feature map: (7*7) * (7*1652)
+    rowFeatureMap = np.matmul(samplesArr, (basesMtrx.iloc[:, 0:7].values.T))
+    #colFeatureMap = np.matmul(samplesArr.transpose((0, 1, 3, 2)), (basesMtrx.iloc[:, 0:7].values.T))
+    # normalize row and col by std from original 50*50's row and col std
+    rowFeatureMap = np.true_divide(rowFeatureMap, rowStdArr)
+    #colFeatureMap = np.true_divide(colFeatureMap, colStdArr)
+    # row and col max pooling 7*1652 -> 7*16
+    rowFeatureMap = Predicte.myUtils.myData.myMaxPooling(rowFeatureMap, baseTypeNumAfterKmean)
+    #colFeatureMap = Predicte.myUtils.myData.myMaxPooling(colFeatureMap, baseTypeNumAfterKmean)
+    #featureMap = np.stack((rowFeatureMap, colFeatureMap), axis=2)
 
-    writer = pd.ExcelWriter(saveExcelPath)  # 写入Excel文件
-    resDF.to_excel(writer, index=False)
-    sytrue_ypred.to_excel(writer, startcol=2, index=False)
-    cytrue_ypred.to_excel(writer, startcol=5, index=False)
-    oytrue_ypred.to_excel(writer, startcol=8, index=False)
-    writer.save()
-    writer.close()
-    # output data
-    res = ','.join(str(i) for i in res)
-    print(res)
+   
+
+    rowFeatureMap = torch.tensor(rowFeatureMap)
+    rowFeatureMap = rowFeatureMap.view(rowFeatureMap.size()[0]*rowFeatureMap.size()[1],1,rowFeatureMap.size()[2],rowFeatureMap.size()[3])
+    
+    # choose cpu or gpu automatically
+    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+    # optFeatureMap data
+    net, optimizer, lossFunc = getAEPams(
+        rowFeatureMap.size()[1],
+        rowFeatureMap.size()[2],
+        rowFeatureMap.size()[3],
+        device,
+        runPams.lr)
+
+    predLabels = Predicte.myUtils.myTrainTest.train_test_AE(
+        rowFeatureMap, net, device, optimizer, lossFunc, runPams)
+
+    predLabels = np.array(predLabels)
+    predLabels = np.resize(predLabels,(len(samples),len(samples[0]),1))
+    
+    #predLabels = np.random.randint(0, 16, (20, 500, 1))
+    # get update row and col indices
+    # initial the new empty samples list
+    allNewSamples = list()
+    for _ in range(16):
+        allNewSamples.append([])
+    # re generate the samples by their label
+    partNum = len(predLabels)
+    samplesNum = len(predLabels[0])
+    for p in range(partNum):
+        for s in range(samplesNum):
+            label = predLabels[p][s]
+            allNewSamples[label.item()].append(samples[p][s])
+    '''
+    test = [list(np.random.rand(500, 7, 7)) for _ in range(20)]
+    allNewSamples = list()
+    for _ in range(20):
+        allNewSamples.append([])
+    for i in range(20):
+        for j in range(500):
+            rowIdx = np.random.randint(0, 1000, 7)
+            colidx = np.random.randint(0, 1000, 7)
+            tmp = pd.DataFrame(test[i][j], index=rowIdx, columns=colidx)
+            allNewSamples[i].append(tmp)
+    '''
+    # get new samples from mateData
+    #test = Predicte.myUtils.myData.getNewPart(allNewSamples[0], mateData)
+
+    p = Pool(os.cpu_count())
+    results = list()
+    for samples in allNewSamples:
+        results.append(p.apply_async(Predicte.myUtils.myData.getNewPart, args=(samples, mateData)))
+    p.close()
+    p.join()
+    newParts = list()
+    for res in results:
+        newParts.append(res.get())
+
+    matchLabel = list()
+    for newPart in newParts:
+        matchRowLen = np.sum(list(map(lambda x: x < yn, newPart.index)))
+        matchColLen = np.sum(list(map(lambda x: x < yn, newPart.columns)))
+        accuracy = ((matchRowLen * matchColLen) / (yn*yn)) * 100
+        matchLabel.append(accuracy)
+    matchLabel = ','.join(str(l) for l in matchLabel)
+    print(matchLabel)
     return ()
 
 
 # run main
 if __name__ == "__main__":
-    # parameters
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--n_epochs", type=int, default=10)
-    if torch.cuda.is_available():
-        parser.add_argument("--batch_size", type=int, default=64)
-    else:
-        parser.add_argument("--batch_size", type=int, default=os.cpu_count())
-    parser.add_argument("--lr", type=float, default=0.0002)
-    parser.add_argument("--n_cpu", type=int, default=os.cpu_count())
-    parser.add_argument("--minusMean", type=int, default=1)
-    parser.add_argument("--stdBias", type=int, default=0)
-    parser.add_argument("--numThreshold", type=int, default=30)
-    parser.add_argument("--xn", type=int, default=50)
-    parser.add_argument("--crType", type=str, default="uniform")
-    parser.add_argument("--sampleNum", type=int, default=500)
-    parser.add_argument("--baseTimes", type=int, default=3)
-    parser.add_argument("--errorStdBias", type=int, default=0 / 10)
-    runPams = parser.parse_args()
-
-    main(runPams)
+    main()
