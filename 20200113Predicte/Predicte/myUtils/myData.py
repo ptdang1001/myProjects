@@ -146,7 +146,8 @@ def mateData2Parts(mateData):
 # end
 
 def getSamplesRowColStd(part):
-    randomRowColIdx = getRandomRowColIdx(low=0, high=49, row=2, col=7, number=500)
+    sampleNum = 500
+    randomRowColIdx = getRandomRowColIdx(low=0, high=49, row=2, col=7, number=sampleNum)
     samples = list()
     samplesArr = list()
     rowStds = list()
@@ -158,8 +159,8 @@ def getSamplesRowColStd(part):
         rowStds.append(np.concatenate(part[["rowStd"]].iloc[rowIdx].values))
         colStds.append(np.concatenate(part.T[["colStd"]].iloc[colIdx].values))
     samplesArr = np.stack(samplesArr)
-    rowStds = np.stack(rowStds).reshape(500, 7, 1)
-    colStds = np.stack(colStds).reshape(500, 7, 1)
+    rowStds = np.stack(rowStds).reshape(sampleNum, 7, 1)
+    colStds = np.stack(colStds).reshape(sampleNum, 7, 1)
 
     return ([samples, samplesArr, rowStds, colStds])
 
@@ -599,6 +600,19 @@ def getBasesMtrxAfterKmean():
 
 # end
 
+def getResortMeanFeatureMap(featureMap):
+    waitColMean = list()
+    for i in range(1, 8):
+        currentColMean = np.mean(featureMap[:, :, 0:i, :], axis=2)
+        zn,xn,yn = currentColMean.shape
+        currentColMean = np.reshape(currentColMean,(zn,xn,1,yn))
+        waitColMean.append(currentColMean)
+    featureMap = np.dstack(waitColMean)
+    return (featureMap)
+
+# end
+
+
 def myMaxPooling(featureMap, baseTypeNumAfterKmean):
     featureMap_tmp = list()
     for i in range(len(baseTypeNumAfterKmean) - 1):
@@ -616,6 +630,8 @@ def getNewPart(samples, mateData):
     # get all row index
     allRowIdx = list()
     for sample in samples:
+        if len(sample) == 0:
+            return([])
         allRowIdx.append(list(sample.index))
     # count row index frequency
     allRowIdx = np.concatenate(allRowIdx)
@@ -638,11 +654,11 @@ def getNewPart(samples, mateData):
     waitColIdx = list(set(list(mateData.columns)) - set(allColIdx))
     for colIdx in waitColIdx:
         _, s, _ = np.linalg.svd(newPart.values)
-        waitCol = mateData.loc[maxRowCountIdx,colIdx].values.reshape(len(maxRowCountIdx),1)
+        waitCol = mateData.loc[maxRowCountIdx, colIdx].values.reshape(len(maxRowCountIdx), 1)
         tmpPart = np.concatenate((newPart.values, waitCol), axis=1)
         _, s_new, _ = np.linalg.svd(tmpPart)
         if s_new[1] < 2 * s[1]:
-            newPart.loc[maxRowCountIdx, colIdx] = mateData.loc[maxRowCountIdx,colIdx]
+            newPart.loc[maxRowCountIdx, colIdx] = mateData.loc[maxRowCountIdx, colIdx]
     allColIdx = list(newPart.columns)
 
     # update the new partition thru row side
@@ -653,7 +669,7 @@ def getNewPart(samples, mateData):
         tmpPart = np.concatenate((newPart.values, waitRow), axis=0)
         _, s_new, _ = np.linalg.svd(tmpPart)
         if s_new[1] < 2 * s[1]:
-            newPart.loc[rowIdx,allColIdx] = mateData.loc[rowIdx, allColIdx]
+            newPart.loc[rowIdx, allColIdx] = mateData.loc[rowIdx, allColIdx]
     return (newPart)
 
 
@@ -953,7 +969,7 @@ def getL1SpeBaseData(crType, minusMean, errorStdBias, blockNum, baseTimes, zn, x
     # noise parameters
     gaussianNoise = np.random.randn(zn, totalRow, totalCol)
     gaussianNoise = gaussianNoise - np.mean(gaussianNoise)
-    #zeroNoise = np.zeros((zn,totalRow, totalCol))  # zero background noise
+    # zeroNoise = np.zeros((zn,totalRow, totalCol))  # zero background noise
     labels_datas = list()
     for i in range(1, blockNum + 1):
         label = i
