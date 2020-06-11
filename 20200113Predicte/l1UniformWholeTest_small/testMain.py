@@ -23,21 +23,21 @@ import Predicte.myUtils.myData
 
 # parameters
 parser = argparse.ArgumentParser()
-parser.add_argument("--n_epochs", type=int, default=1)
+parser.add_argument("--n_epochs", type=int, default=1024)
 if torch.cuda.is_available():
-    parser.add_argument("--batch_size", type=int, default=16)
+    parser.add_argument("--batch_size", type=int, default=500)
 else:
-    parser.add_argument("--batch_size", type=int, default=os.cpu_count())
+    parser.add_argument("--batch_size", type=int, default=500)
 parser.add_argument("--lr", type=float, default=0.0002)
 parser.add_argument("--n_cpu", type=int, default=os.cpu_count())
 parser.add_argument("--minusMean", type=int, default=1)
 parser.add_argument("--stdBias", type=int, default=0)
 parser.add_argument("--numThreshold", type=int, default=30)
-parser.add_argument("--xn", type=int, default=50)
-parser.add_argument("--crType", type=str, default="uniform")
+parser.add_argument("--xn", type=int, default=500)
+parser.add_argument("--crType", type=str, default="spe")
 parser.add_argument("--sampleNum", type=int, default=500)
-parser.add_argument("--baseTimes", type=int, default=5)
-parser.add_argument("--errorStdBias", type=int, default=0 / 10)
+parser.add_argument("--baseTimes", type=int, default=1)
+parser.add_argument("--errorStdBias", type=int, default=0/10)
 runPams = parser.parse_args()
 
 
@@ -78,9 +78,9 @@ def getAEPams(zn, xn, yn, device, lr):
 def main():
     # parameters
     mean = 0
-    minusMean = 1
+    minusMean = 0
     blockNum = 1
-    replace = 0
+    replace = 1
     zn = 1
     yn = runPams.xn
     totalRow = 1000
@@ -150,8 +150,10 @@ def main():
         rowFeatureMap, net, device, optimizer, lossFunc, runPams)
 
     predLabels = np.array(predLabels)
-    predLabels = np.resize(predLabels,(len(samples),len(samples[0]),1))
-    
+    #predLabels = np.resize(predLabels,(len(samples),len(samples[0]),1))
+    predLabels = np.unique(predLabels)
+    print(predLabels)
+    sys.exit()
     #predLabels = np.random.randint(0, 16, (20, 500, 1))
     # get update row and col indices
     # initial the new empty samples list
@@ -165,18 +167,7 @@ def main():
         for s in range(samplesNum):
             label = predLabels[p][s]
             allNewSamples[label.item()].append(samples[p][s])
-    '''
-    test = [list(np.random.rand(500, 7, 7)) for _ in range(20)]
-    allNewSamples = list()
-    for _ in range(20):
-        allNewSamples.append([])
-    for i in range(20):
-        for j in range(500):
-            rowIdx = np.random.randint(0, 1000, 7)
-            colidx = np.random.randint(0, 1000, 7)
-            tmp = pd.DataFrame(test[i][j], index=rowIdx, columns=colidx)
-            allNewSamples[i].append(tmp)
-    '''
+
     # get new samples from mateData
     #test = Predicte.myUtils.myData.getNewPart(allNewSamples[0], mateData)
 

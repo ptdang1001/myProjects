@@ -46,7 +46,7 @@ def getMaxIdx_jit(corectEf, num):
     maxIdx = list()
     rowNum = corectEf.shape[0]
     colNum = corectEf.shape[1]
-    for m in range(num):
+    for m in range(rowNum):
         if len(set(maxIdx)) >= num:
             break
         max = 0
@@ -70,13 +70,12 @@ def getMaxIdx_jit(corectEf, num):
 
 def getMaxIdx(corectEf, num):
     maxIdx = list()
-    for _ in range(num):
-        if len(set(maxIdx)) >= num:
-            break
+    while len(maxIdx) < num:
         mi = np.where(corectEf == corectEf.max())
         corectEf[mi] = -1000
         maxIdx = np.append(mi[0], mi[1])
-    maxIdx = list(set(maxIdx))[:num]
+        maxIdx = np.unique(maxIdx)
+    maxIdx = maxIdx[:num]
     return (maxIdx)
 
 
@@ -134,7 +133,7 @@ def mateData2Parts(mateData):
         part = mateData.iloc[rowMaxIdx, colMaxIdx].copy()
         mateData = mateData.drop(index=part.index)
         mateData = mateData.drop(columns=part.columns)
-        part = part - np.mean(part)
+        #part = part - np.mean(part)
         rowStd = np.std(part, axis=1)
         colStd = np.std(part, axis=0)
         part.loc[:, "rowStd"] = rowStd
@@ -604,11 +603,12 @@ def getResortMeanFeatureMap(featureMap):
     waitColMean = list()
     for i in range(1, 8):
         currentColMean = np.mean(featureMap[:, :, 0:i, :], axis=2)
-        zn,xn,yn = currentColMean.shape
-        currentColMean = np.reshape(currentColMean,(zn,xn,1,yn))
+        zn, xn, yn = currentColMean.shape
+        currentColMean = np.reshape(currentColMean, (zn, xn, 1, yn))
         waitColMean.append(currentColMean)
     featureMap = np.dstack(waitColMean)
     return (featureMap)
+
 
 # end
 
@@ -631,7 +631,7 @@ def getNewPart(samples, mateData):
     allRowIdx = list()
     for sample in samples:
         if len(sample) == 0:
-            return([])
+            return ([])
         allRowIdx.append(list(sample.index))
     # count row index frequency
     allRowIdx = np.concatenate(allRowIdx)
@@ -946,30 +946,35 @@ def getL1SpeBaseData(crType, minusMean, errorStdBias, blockNum, baseTimes, zn, x
                 r = torch.randn(1, xn)
                 blocks.append((torch.matmul(c, r) * baseTimes + error).numpy())
     else:
-        base1 = [1]
-        base2 = [-1]
-        base3 = [0]
-        bases = [base1, base2, base3]
-        if minusMean == 0:
+        base1 = [1] * int(xn * (2 / 5))
+        base2 = [-1] * int(xn * (2 / 5))
+        base3 = [0] * int(xn * (1 / 5))
+        bases = np.concatenate((base1, base2, base3))
+        bases = torch.tensor(bases)
+        if minusMean == 1:
             for _ in range(blocksNum):
-                randomIdx = torch.tensor(np.random.choice(range(xn), xn, replace=False)).long()
-                c = bases[randomIdx].view(xn, 1).float()
-                r = torch.randn(1, xn)
-                blocks.append(torch.matmul(c, r))
-            else:
-                for _ in range(blocksNum):
-                    randomIdx = torch.tensor(np.random.choice(range(xn), xn, replace=False)).long()
-                c = bases[randomIdx].view(xn, 1).float()
-                r = torch.randn(1, xn)
-                block = torch.matmul(c, r)
+                rdmRowIdx = np.random.choice(range(xn), xn, replace=False)
+                rdmColIdx = np.random.choice(range(xn), xn, replace=False)
+                c = bases[rdmColIdx].view(xn, 1).float()
+                r = bases[rdmRowIdx].view(1, xn).float()
+                block = torch.matmul(c, r) * baseTimes
                 block = block - torch.mean(block)
-                blocks.append(block)
+                blocks.append((block + error).numpy())
+        else:
+            for _ in range(blocksNum):
+                rdmRowIdx = np.random.choice(range(xn), xn, replace=False)
+                rdmColIdx = np.random.choice(range(xn), xn, replace=False)
+                c = bases[rdmColIdx].view(xn, 1).float()
+                r = bases[rdmRowIdx].view(1, xn).float()
+                block = torch.matmul(c, r) * baseTimes + error
+                blocks.append(block.numpy())
     blocks = np.stack(blocks)
     blocks = np.reshape(blocks, (blockNum, zn, xn, yn))
     # noise parameters
     gaussianNoise = np.random.randn(zn, totalRow, totalCol)
     gaussianNoise = gaussianNoise - np.mean(gaussianNoise)
-    # zeroNoise = np.zeros((zn,totalRow, totalCol))  # zero background noise
+    zeroNoise = np.zeros((zn, totalRow, totalCol))  # zero background noise
+    # gaussianNoise = zeroNoise
     labels_datas = list()
     for i in range(1, blockNum + 1):
         label = i
