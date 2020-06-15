@@ -33,9 +33,9 @@ parser.add_argument("--n_cpu", type=int, default=os.cpu_count())
 parser.add_argument("--minusMean", type=int, default=1)
 parser.add_argument("--stdBias", type=int, default=0)
 parser.add_argument("--numThreshold", type=int, default=30)
-parser.add_argument("--xn", type=int, default=500)
-parser.add_argument("--crType", type=str, default="spe")
-parser.add_argument("--sampleNum", type=int, default=500)
+parser.add_argument("--xn", type=int, default=300)
+parser.add_argument("--crType", type=str, default="uniform")
+parser.add_argument("--sampleNum", type=int, default=300)
 parser.add_argument("--baseTimes", type=int, default=1)
 parser.add_argument("--errorStdBias", type=int, default=0/10)
 runPams = parser.parse_args()
@@ -78,7 +78,7 @@ def getAEPams(zn, xn, yn, device, lr):
 def main():
     # parameters
     mean = 0
-    minusMean = 0
+    minusMean = 1
     blockNum = 1
     replace = 1
     zn = 1
@@ -106,31 +106,34 @@ def main():
     samples = list()
     samplesArr = list()
     rowStdArr = list()
-    colStdArr = list()
+    #colStdArr = list()
     for r in res:
         samples.append(r[0])
         samplesArr.append(r[1])
         rowStdArr.append(r[2])
-        colStdArr.append(r[3])
+        #colStdArr.append(r[3])
     samplesArr = np.stack(samplesArr)
     rowStdArr = np.stack(rowStdArr)
-    colStdArr = np.stack(colStdArr)
-    
+    #colStdArr = np.stack(colStdArr)
+
     # get bases matrix
     basesMtrx, baseTypeNumAfterKmean, baseIdAfterKMeans = Predicte.myUtils.myData.getBasesMtrxAfterKmean()
     # get row and col feature map: (7*7) * (7*1652)
     rowFeatureMap = np.matmul(samplesArr, (basesMtrx.iloc[:, 0:7].values.T))
     #colFeatureMap = np.matmul(samplesArr.transpose((0, 1, 3, 2)), (basesMtrx.iloc[:, 0:7].values.T))
     # normalize row and col by std from original 50*50's row and col std
-    rowFeatureMap = np.true_divide(rowFeatureMap, rowStdArr)
-    rowFeatureMap = -np.sort(-rowFeatureMap, axis=2)
+    #rowFeatureMap = np.true_divide(rowFeatureMap, rowStdArr)
+    #rowFeatureMap = -np.sort(-rowFeatureMap, axis=2)
+    # normalize col by std from original 50*50' col
     #colFeatureMap = np.true_divide(colFeatureMap, colStdArr)
-    rowFeatureMap = Predicte.myUtils.myData.getResortMeanFeatureMap(rowFeatureMap)
+    #colFeatureMap = -np.sort(-colFeatureMap, axis=2)
+    # resort them by their mean
+    #rowFeatureMap = Predicte.myUtils.myData.getResortMeanFeatureMap(rowFeatureMap)
+    #colFeatureMap = Predicte.myUtils.myData.getResortMeanFeatureMap(colFeatureMap)
     # row and col max pooling 7*1652 -> 7*16
-    rowFeatureMap = Predicte.myUtils.myData.myMaxPooling(rowFeatureMap, baseTypeNumAfterKmean)
+    #rowFeatureMap = Predicte.myUtils.myData.myMaxPooling(rowFeatureMap, baseTypeNumAfterKmean)
     #colFeatureMap = Predicte.myUtils.myData.myMaxPooling(colFeatureMap, baseTypeNumAfterKmean)
     #featureMap = np.stack((rowFeatureMap, colFeatureMap), axis=2)
-
    
 
     rowFeatureMap = torch.tensor(rowFeatureMap)

@@ -95,9 +95,10 @@ def train_test_AE(data, net, device, optimizer, lossFunc, opt):
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
-
+            '''
             if step % 10 == 9:
                 print('Epoch: ', epoch, '| train loss: %.4f' % loss.data.numpy())
+            '''
     # train end
 
     # ----------------------------------------------------------test-----------------------------------------

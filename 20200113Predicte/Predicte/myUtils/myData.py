@@ -46,7 +46,7 @@ def getMaxIdx_jit(corectEf, num):
     maxIdx = list()
     rowNum = corectEf.shape[0]
     colNum = corectEf.shape[1]
-    for m in range(rowNum):
+    while 1:
         if len(set(maxIdx)) >= num:
             break
         max = 0
@@ -123,8 +123,8 @@ def mateData2Parts(mateData):
             part.loc["colStd", :] = colStd
             parts.append(part)
             break
-        randomInitRowIdx = np.random.randint(len(mateData), size=5)
-        colCorectEf = np.corrcoef(mateData.iloc[randomInitRowIdx, :].T)
+        #randomInitRowIdx = np.random.randint(len(mateData), size=5)
+        colCorectEf = np.corrcoef(mateData.iloc[:5, :].T)
         colCorectEf[np.tril_indices(colCorectEf.shape[0], 0)] = -1000
         colMaxIdx = getMaxIdx_jit(colCorectEf, partColLen)
         rowCorectEf = np.corrcoef(mateData.iloc[:, colMaxIdx])
@@ -133,7 +133,12 @@ def mateData2Parts(mateData):
         part = mateData.iloc[rowMaxIdx, colMaxIdx].copy()
         mateData = mateData.drop(index=part.index)
         mateData = mateData.drop(columns=part.columns)
-        #part = part - np.mean(part)
+
+        #part minus row mean value
+        part = part - np.mean(part.values, axis=1).reshape(50,1)
+        part = np.true_divide(part, np.std(part.values, axis=1).reshape(50,1))
+
+        # get row std and col std
         rowStd = np.std(part, axis=1)
         colStd = np.std(part, axis=0)
         part.loc[:, "rowStd"] = rowStd
@@ -145,7 +150,7 @@ def mateData2Parts(mateData):
 # end
 
 def getSamplesRowColStd(part):
-    sampleNum = 500
+    sampleNum = 5
     randomRowColIdx = getRandomRowColIdx(low=0, high=49, row=2, col=7, number=sampleNum)
     samples = list()
     samplesArr = list()
@@ -582,12 +587,14 @@ def getBasesMtrxAfterKmean():
     kmeansRes = KMeans(n_clusters=16).fit(basesMtrx)
     # Save the labels
     basesMtrx.loc[:, 'label'] = kmeansRes.labels_
+    # multiply dif times to each base type
     basesMtrx.iloc[baseTypeNum[0]:baseTypeNum[1], 0:7] = basesMtrx.iloc[baseTypeNum[0]:baseTypeNum[1], 0:7].multiply(
         1.45)
     basesMtrx.iloc[baseTypeNum[1]:baseTypeNum[2], 0:7] = basesMtrx.iloc[baseTypeNum[1]:baseTypeNum[2], 0:7].multiply(
         1.11)
     basesMtrx.iloc[baseTypeNum[2]:baseTypeNum[3], 0:7] = basesMtrx.iloc[baseTypeNum[2]:baseTypeNum[3], 0:7].multiply(
         0.63)
+
     basesMtrx = basesMtrx.sort_values(by="label", ascending=True)
     baseIdAfterKMeans = basesMtrx.index
     baseTypeNumAfterKmean = [0]
@@ -700,11 +707,11 @@ def getConsistencyScoreMtrx(basesMtrx):
 @lru_cache()
 def getRandomRowColIdx(low=0, high=49, row=2, col=7, number=10):
     randomRowIdx = [
-        np.sort(np.random.choice(range(low, high), col, replace=False))
+        np.sort(np.random.choice(range(low, high+1), col, replace=False))
         for _ in range(number)
     ]
     randomColIdx = [
-        np.sort(np.random.choice(range(low, high), col, replace=False))
+        np.sort(np.random.choice(range(low, high+1), col, replace=False))
         for _ in range(number)
     ]
     randomRowColIdx = list(zip(randomRowIdx, randomColIdx))
@@ -931,7 +938,8 @@ def getL1SpeBaseData(crType, minusMean, errorStdBias, blockNum, baseTimes, zn, x
             for _ in range(blocksNum):
                 c = torch.rand(xn, 1)
                 r = torch.rand(1, xn)
-                blocks.append((torch.matmul(c, r) * baseTimes + error).numpy())
+                block = torch.matmul(c,r) * baseTimes
+                blocks.append((block + error).numpy())
     elif crType == "norm":
         if minusMean == 1:
             for _ in range(blocksNum):
@@ -944,12 +952,13 @@ def getL1SpeBaseData(crType, minusMean, errorStdBias, blockNum, baseTimes, zn, x
             for _ in range(blocksNum):
                 c = torch.randn(xn, 1)
                 r = torch.randn(1, xn)
-                blocks.append((torch.matmul(c, r) * baseTimes + error).numpy())
+                block = torch.matmul(c,r) * baseTimes
+                blocks.append((block + error).numpy())
     else:
-        base1 = [1] * int(xn * (2 / 5))
-        base2 = [-1] * int(xn * (2 / 5))
-        base3 = [0] * int(xn * (1 / 5))
-        bases = np.concatenate((base1, base2, base3))
+        base1 = [1] * int(xn * (2 / 4))
+        base2 = [-1] * int(xn * (2 / 4))
+        #base3 = [0] * int(xn * (1 / 5))
+        bases = np.concatenate((base1, base2))
         bases = torch.tensor(bases)
         if minusMean == 1:
             for _ in range(blocksNum):

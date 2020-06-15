@@ -40,14 +40,14 @@ class AutoEncoder(nn.Module):
             nn.Tanh(),
             nn.Linear(128, 64),
             nn.Tanh(),
-            nn.Linear(64, 16),
-            #nn.Tanh(),
-            #nn.Linear(12, 16),
+            nn.Linear(64, 32),
+            nn.Tanh(),
+            nn.Linear(32, 3),
         )
         self.decoder = nn.Sequential(
-            #nn.Linear(16, 12),
-            #nn.Tanh(),
-            nn.Linear(16, 64),
+            nn.Linear(3, 32),
+            nn.Tanh(),
+            nn.Linear(32, 64),
             nn.Tanh(),
             nn.Linear(64, 128),
             nn.Tanh(),
@@ -55,9 +55,9 @@ class AutoEncoder(nn.Module):
             nn.Sigmoid(),  # compress to a range (0, 1)
         )
         self.classfier = nn.Sequential(
-            #nn.Linear(3, 12),
-            #nn.Tanh(),
-            nn.Linear(16, 64),
+            nn.Linear(3, 32),
+            nn.Tanh(),
+            nn.Linear(32, 64),
             nn.Tanh(),
             nn.Linear(64, 128),
             nn.Tanh(),
