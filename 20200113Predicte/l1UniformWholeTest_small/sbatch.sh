@@ -12,4 +12,4 @@
 #SBATCH --time=00:55:00
 
 #module load
-python testMain.py --minusMean $1 --xn $2 --stdBias $3 --numThreshold $4
+python testMain.py #--minusMean $1 --xn $2 --stdBias $3 --numThreshold $4

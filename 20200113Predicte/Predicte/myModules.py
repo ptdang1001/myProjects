@@ -32,7 +32,7 @@ class CNN(nn.Module):
 
 # unsupervised deep learning
 class AutoEncoder(nn.Module):
-    def __init__(self, zn,xn,yn):
+    def __init__(self, zn, xn, yn):
         super(AutoEncoder, self).__init__()
 
         self.encoder = nn.Sequential(
@@ -74,7 +74,7 @@ class AutoEncoder(nn.Module):
 
 
 '''
-# Autoencoder Definition
+# Autoencoder with cnn
 class Encoder(nn.Module):
     def __init__(self):
         super(Encoder, self).__init__()
@@ -123,18 +123,29 @@ class AutoEncoder(nn.Module):
 
 
 class VAE(nn.Module):
-    def __init__(self):
+    def __init__(self, zn, xn, yn):
         super(VAE, self).__init__()
+        # encoder layers
+        self.fc1 = nn.Linear(zn * xn * yn, 128)
+        self.fc2 = nn.Linear(128, 64)
+        self.fc3 = nn.Linear(64, 32)
+        self.fc41 = nn.Linear(32, 16)
+        self.fc42 = nn.Linear(32, 16)
 
-        self.fc1 = nn.Linear(784, 400)
-        self.fc21 = nn.Linear(400, 20)
-        self.fc22 = nn.Linear(400, 20)
-        self.fc3 = nn.Linear(20, 400)
-        self.fc4 = nn.Linear(400, 784)
+        # decoder layers
+        self.fc5 = nn.Linear(16, 32)
+        self.fc6 = nn.Linear(32, 64)
+        self.fc7 = nn.Linear(64, 128)
+        self.fc81 = nn.Linear(128, zn * xn * yn)
+
+        # classifier layers
+        self.fc82 = nn.Linear(128, 16)
 
     def encode(self, x):
-        h1 = F.relu(self.fc1(x))
-        return self.fc21(h1), self.fc22(h1)
+        x = F.relu(self.fc1(x))
+        x = F.relu(self.fc2(x))
+        x = F.relu(self.fc3(x))
+        return self.fc41(x), self.fc42(x)
 
     def reparametrize(self, mu, logvar):
         std = logvar.mul(0.5).exp_()
@@ -146,13 +157,21 @@ class VAE(nn.Module):
         return eps.mul(std).add_(mu)
 
     def decode(self, z):
-        h3 = F.relu(self.fc3(z))
-        return F.sigmoid(self.fc4(h3))
+        z = F.relu(self.fc5(z))
+        z = F.relu(self.fc6(z))
+        z = F.relu(self.fc7(z))
+        return F.sigmoid(self.fc81(z))
+
+    def classfier(self, z):
+        z = F.relu(self.fc5(z))
+        z = F.relu(self.fc6(z))
+        z = F.relu(self.fc7(z))
+        return (F.sigmoid(self.fc82(z)))
 
     def forward(self, x):
         mu, logvar = self.encode(x)
         z = self.reparametrize(mu, logvar)
-        return self.decode(z), mu, logvar
+        return (self.decode(z), self.classfier(z),  mu, logvar)
 
 
 # Fully Connected Network

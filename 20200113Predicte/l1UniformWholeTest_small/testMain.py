@@ -23,7 +23,7 @@ import Predicte.myUtils.myData
 
 # parameters
 parser = argparse.ArgumentParser()
-parser.add_argument("--n_epochs", type=int, default=1024)
+parser.add_argument("--n_epochs", type=int, default=1)
 if torch.cuda.is_available():
     parser.add_argument("--batch_size", type=int, default=500)
 else:
@@ -70,6 +70,16 @@ def getAEPams(zn, xn, yn, device, lr):
     optimizer = torch.optim.Adam(AE.parameters(), lr=lr)
     lossFunc = nn.MSELoss()
     return (AE, optimizer, lossFunc)
+
+
+# end
+
+def getVAEPams(zn, xn, yn, device, lr):
+    VAE = Predicte.myModules.VAE(zn, xn, yn)
+    VAE = VAE.to(device)
+    optimizer = torch.optim.Adam(VAE.parameters(), lr=lr)
+    lossFunc = nn.MSELoss()
+    return (VAE, optimizer, lossFunc)
 
 
 # end
@@ -121,17 +131,21 @@ def main():
     # get row and col feature map: (7*7) * (7*1652)
     rowFeatureMap = np.matmul(samplesArr, (basesMtrx.iloc[:, 0:7].values.T))
     #colFeatureMap = np.matmul(samplesArr.transpose((0, 1, 3, 2)), (basesMtrx.iloc[:, 0:7].values.T))
+
     # normalize row and col by std from original 50*50's row and col std
     #rowFeatureMap = np.true_divide(rowFeatureMap, rowStdArr)
-    #rowFeatureMap = -np.sort(-rowFeatureMap, axis=2)
+    rowFeatureMap = -np.sort(-rowFeatureMap, axis=2)
+
     # normalize col by std from original 50*50' col
     #colFeatureMap = np.true_divide(colFeatureMap, colStdArr)
     #colFeatureMap = -np.sort(-colFeatureMap, axis=2)
+
     # resort them by their mean
-    #rowFeatureMap = Predicte.myUtils.myData.getResortMeanFeatureMap(rowFeatureMap)
+    rowFeatureMap = Predicte.myUtils.myData.getResortMeanFeatureMap(rowFeatureMap)
     #colFeatureMap = Predicte.myUtils.myData.getResortMeanFeatureMap(colFeatureMap)
+
     # row and col max pooling 7*1652 -> 7*16
-    #rowFeatureMap = Predicte.myUtils.myData.myMaxPooling(rowFeatureMap, baseTypeNumAfterKmean)
+    rowFeatureMap = Predicte.myUtils.myData.myMaxPooling(rowFeatureMap, baseTypeNumAfterKmean)
     #colFeatureMap = Predicte.myUtils.myData.myMaxPooling(colFeatureMap, baseTypeNumAfterKmean)
     #featureMap = np.stack((rowFeatureMap, colFeatureMap), axis=2)
    
@@ -142,14 +156,14 @@ def main():
     # choose cpu or gpu automatically
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     # optFeatureMap data
-    net, optimizer, lossFunc = getAEPams(
+    net, optimizer, lossFunc = getVAEPams(
         rowFeatureMap.size()[1],
         rowFeatureMap.size()[2],
         rowFeatureMap.size()[3],
         device,
         runPams.lr)
 
-    predLabels = Predicte.myUtils.myTrainTest.train_test_AE(
+    predLabels = Predicte.myUtils.myTrainTest.train_test_VAE(
         rowFeatureMap, net, device, optimizer, lossFunc, runPams)
 
     predLabels = np.array(predLabels)
