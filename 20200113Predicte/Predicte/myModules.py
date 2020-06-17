@@ -32,37 +32,31 @@ class CNN(nn.Module):
 
 # unsupervised deep learning
 class AutoEncoder(nn.Module):
-    def __init__(self, zn, xn, yn):
+    def __init__(self, xn, yn):
         super(AutoEncoder, self).__init__()
-
+        self.inSize = xn*yn
         self.encoder = nn.Sequential(
-            nn.Linear(zn * xn * yn, 128),
+            nn.Linear(self.inSize, int(self.inSize/2)),
             nn.Tanh(),
-            nn.Linear(128, 64),
+            nn.Linear(int(self.inSize/2), int(self.inSize/4)),
             nn.Tanh(),
-            nn.Linear(64, 32),
-            nn.Tanh(),
-            nn.Linear(32, 3),
+            nn.Linear(int(self.inSize/4), int(self.inSize/8)),
         )
         self.decoder = nn.Sequential(
-            nn.Linear(3, 32),
+            nn.Linear(int(self.inSize/8), int(self.inSize/4)),
             nn.Tanh(),
-            nn.Linear(32, 64),
+            nn.Linear(int(self.inSize/4), int(self.inSize/2)),
             nn.Tanh(),
-            nn.Linear(64, 128),
-            nn.Tanh(),
-            nn.Linear(128, zn * xn * yn),
+            nn.Linear(int(self.inSize/2), self.inSize),
             nn.Sigmoid(),  # compress to a range (0, 1)
         )
         self.classfier = nn.Sequential(
-            nn.Linear(3, 32),
+            nn.Linear(int(self.inSize / 8), int(self.inSize / 4)),
             nn.Tanh(),
-            nn.Linear(32, 64),
+            nn.Linear(int(self.inSize / 4), int(self.inSize / 2)),
             nn.Tanh(),
-            nn.Linear(64, 128),
-            nn.Tanh(),
-            nn.Linear(128, 16),
-            nn.Sigmoid(),
+            nn.Linear(int(self.inSize / 2), 16),
+            nn.Sigmoid(),  # compress to a range (0, 1)
         )
 
     # 无监督前向传播过程
@@ -73,7 +67,6 @@ class AutoEncoder(nn.Module):
         return (encoded, decoded, label)
 
 
-'''
 # Autoencoder with cnn
 class Encoder(nn.Module):
     def __init__(self):
@@ -109,7 +102,7 @@ class Decoder(nn.Module):
         return x
 
 
-class AutoEncoder(nn.Module):
+class AutoEncoder_CNN(nn.Module):
     def __init__(self):
         super(AutoEncoder, self).__init__()
         self.encoder = Encoder()
@@ -119,7 +112,6 @@ class AutoEncoder(nn.Module):
         latent = self.encoder(x)
         x_recon = self.decoder(latent)
         return x_recon
-'''
 
 
 class VAE(nn.Module):
@@ -189,3 +181,62 @@ class FCN(nn.Module):
         x = F.relu(self.fc2(x))
         x = self.fc3(x)
         return x
+
+# GAN
+# Generator
+class Generator(nn.Module):
+    def __init__(self, xn, yn):
+        super(Generator, self).__init__()
+        self.model = nn.Sequential(
+            nn.Linear(xn*yn, 128),
+            nn.ReLU(),
+            nn.Linear(128, 256),
+            nn.ReLU(),
+            nn.Linear(256, 512),
+            nn.ReLU(),
+            nn.Linear(512, 1024),
+            nn.ReLU(),
+            nn.Linear(1024, xn*yn),
+            nn.Tanh(),
+        )
+
+    def forward(self, z):
+        x = self.model(z)
+        return (x)
+
+
+# Didcriminator
+class Discriminator(nn.Module):
+    def __init__(self, xn, yn):
+        super(Discriminator, self).__init__()
+
+        self.model = nn.Sequential(
+            nn.Linear(xn*yn, 1024),
+            nn.LeakyReLU(0.2, inplace=True),
+            nn.Linear(1024, 512),
+            nn.LeakyReLU(0.2, inplace=True),
+            nn.Linear(512, 256),
+            nn.LeakyReLU(0.2, inplace=True),
+            nn.Linear(256, 128),
+            nn.LeakyReLU(0.2, inplace=True),
+            nn.Linear(128, 1),
+            nn.Sigmoid(),
+        )
+
+        self.classifier = nn.Sequential(
+            nn.Linear(xn * yn, 1024),
+            nn.LeakyReLU(0.2, inplace=True),
+            nn.Linear(1024, 512),
+            nn.LeakyReLU(0.2, inplace=True),
+            nn.Linear(512, 256),
+            nn.LeakyReLU(0.2, inplace=True),
+            nn.Linear(256, 128),
+            nn.LeakyReLU(0.2, inplace=True),
+            nn.Linear(128, 16),
+            nn.Sigmoid(),
+        )
+
+    def forward(self, x):
+        score = self.model(x)
+        label = self.classifier(x)
+        return (score, label)

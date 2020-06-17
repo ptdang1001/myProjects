@@ -575,11 +575,11 @@ def getBasesMtrxs(bases):
 # end
 
 def getBasesMtrxAfterKmean():
-    base1 = [1, -1, 0, 0, 0, 0, 0]
+    #base1 = [1, -1, 0, 0, 0, 0, 0]
     base2 = [1, 1, -1, -1, 0, 0, 0]
     base3 = [2, 1, 1, -1, -1, -2, 0]
     base4 = [1, 1, 1, -1, -1, -1, 0]
-    bases = [base1, base2, base3, base4]
+    bases = [base2, base3, base4]
     baseTypeNum, basesMtrx = getBasesMtrxs(bases)
     basesMtrx = pd.DataFrame(basesMtrx)
     basesMtrx = basesMtrx.T
@@ -589,11 +589,10 @@ def getBasesMtrxAfterKmean():
     basesMtrx.loc[:, 'label'] = kmeansRes.labels_
     # multiply dif times to each base type
     basesMtrx.iloc[baseTypeNum[0]:baseTypeNum[1], 0:7] = basesMtrx.iloc[baseTypeNum[0]:baseTypeNum[1], 0:7].multiply(
-        1.45)
-    basesMtrx.iloc[baseTypeNum[1]:baseTypeNum[2], 0:7] = basesMtrx.iloc[baseTypeNum[1]:baseTypeNum[2], 0:7].multiply(
         1.11)
-    basesMtrx.iloc[baseTypeNum[2]:baseTypeNum[3], 0:7] = basesMtrx.iloc[baseTypeNum[2]:baseTypeNum[3], 0:7].multiply(
+    basesMtrx.iloc[baseTypeNum[1]:baseTypeNum[2], 0:7] = basesMtrx.iloc[baseTypeNum[1]:baseTypeNum[2], 0:7].multiply(
         0.63)
+    #basesMtrx.iloc[baseTypeNum[2]:baseTypeNum[3], 0:7] = basesMtrx.iloc[baseTypeNum[2]:baseTypeNum[3], 0:7].multiply(0.63)
 
     basesMtrx = basesMtrx.sort_values(by="label", ascending=True)
     baseIdAfterKMeans = basesMtrx.index
@@ -608,7 +607,8 @@ def getBasesMtrxAfterKmean():
 
 def getResortMeanFeatureMap(featureMap):
     waitColMean = list()
-    for i in range(1, 8):
+    xn = featureMap.shape[2]
+    for i in range(1, xn+1):
         currentColMean = np.mean(featureMap[:, :, 0:i, :], axis=2)
         zn, xn, yn = currentColMean.shape
         currentColMean = np.reshape(currentColMean, (zn, xn, 1, yn))
