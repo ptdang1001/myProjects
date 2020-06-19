@@ -201,6 +201,7 @@ def train_test_GAN(data, device, lossFunc, opt, net_G, g_optimizer, net_D, d_opt
             g_loss = lossFunc(dg_fake_decision, Variable(torch.zeros_like(dg_fake_decision).to(device)))  # we want to fool, so pretend it's all genuine
             g_loss.backward()
             g_optimizer.step()  # Only optimizes G's parameters
+
     # train end
 
     # ----------------------------------------------------------test-----------------------------------------
