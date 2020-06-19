@@ -74,8 +74,8 @@ def getAEPams(xn, yn, device, lr):
 
 # end
 
-def getVAEPams(zn, xn, yn, device, lr):
-    VAE = Predicte.myModules.VAE(zn, xn, yn)
+def getVAEPams(xn, yn, device, lr):
+    VAE = Predicte.myModules.VAE(xn, yn)
     VAE = VAE.to(device)
     optimizer = torch.optim.Adam(VAE.parameters(), lr=lr)
     lossFunc = nn.MSELoss()
@@ -84,25 +84,22 @@ def getVAEPams(zn, xn, yn, device, lr):
 
 # end
 
-def getGPams(xn, yn, device, lr):
+def getGANPams(xn, yn, device, lr):
+    # G parts
     G = Predicte.myModules.Generator(xn, yn)
     G = G.to(device)
-    optimizer = torch.optim.Adam(G.parameters(), lr=lr)
-    lossFunc = nn.BCELoss()
-    return (G, optimizer, lossFunc)
+    G_optimizer = torch.optim.Adam(G.parameters(), lr=lr)
 
-
-# end
-
-def getDPams(xn, yn, device, lr):
+    # D parts
     D = Predicte.myModules.Discriminator(xn, yn)
     D = D.to(device)
-    optimizer = torch.optim.Adam(D.parameters(), lr=lr)
+    D_optimizer = torch.optim.Adam(D.parameters(), lr=lr)
     lossFunc = nn.BCELoss()
-    return (D, optimizer, lossFunc)
+    return (G, G_optimizer, D, D_optimizer, lossFunc)
 
 
 # end
+
 
 
 def main():
@@ -143,7 +140,7 @@ def main():
         rowStdArr.append(r[2])
         # colStdArr.append(r[3])
     samplesArr = np.stack(samplesArr)
-    rowStdArr = np.stack(rowStdArr)
+    #rowStdArr = np.stack(rowStdArr)
     # colStdArr = np.stack(colStdArr)
 
     # get bases matrix
@@ -162,7 +159,7 @@ def main():
     # colFeatureMap = -np.sort(-colFeatureMap, axis=2)
 
     # resort them by their mean
-    rowFeatureMap = Predicte.myUtils.myData.getResortMeanFeatureMap(rowFeatureMap[:,:,2:7,:])
+    rowFeatureMap = Predicte.myUtils.myData.getResortMeanFeatureMap(rowFeatureMap[:,:,0:7,:])
     # colFeatureMap = Predicte.myUtils.myData.getResortMeanFeatureMap(colFeatureMap)
 
     # row and col max pooling 7*1652 -> 7*16
@@ -171,23 +168,22 @@ def main():
     # featureMap = np.stack((rowFeatureMap, colFeatureMap), axis=2)
 
     # sort the rows
-    rowFeatureMap = -np.sort(-rowFeatureMap, axis=3)[:,:,:,:5]
+    rowFeatureMap = -np.sort(-rowFeatureMap, axis=3)[:,:,:,:]
 
     rowFeatureMap = torch.tensor(rowFeatureMap)
     rowFeatureMap = rowFeatureMap.view(rowFeatureMap.size()[0] * rowFeatureMap.size()[1], rowFeatureMap.size()[2],
                                        rowFeatureMap.size()[3])
-
     # choose cpu or gpu automatically
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     # optFeatureMap data
-    net, optimizer, lossFunc = getAEPams(
+    G_net, G_optimizer, D_net, D_optimizer, lossFunc = getGANPams(
         rowFeatureMap.size()[1],
         rowFeatureMap.size()[2],
         device,
         runPams.lr)
 
-    predLabels = Predicte.myUtils.myTrainTest.train_test_AE(
-        rowFeatureMap, net, device, optimizer, lossFunc, runPams)
+    predLabels = Predicte.myUtils.myTrainTest.train_test_GAN(
+        rowFeatureMap, device, lossFunc, runPams, G_net, G_optimizer, D_net, D_optimizer)
 
     predLabels = np.array(predLabels)
     n = len(predLabels)

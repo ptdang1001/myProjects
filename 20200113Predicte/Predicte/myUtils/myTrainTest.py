@@ -162,7 +162,7 @@ def train_test_VAE(data, net, device, optimizer, lossFunc, opt):
 # end
 
 
-def train_test_GD(data, net_G, net_D, device, optimizer_G, optimizer_D, lossFunc, opt):
+def train_test_GAN(data, device, lossFunc, opt, net_G, g_optimizer, net_D, d_optimizer, d_steps=16, g_steps=8):
     zn, xn, yn = data.size()
     dataSet = myData.MyDataset(data, data)
     dataLoader = DataLoader(dataset=dataSet,
@@ -170,78 +170,36 @@ def train_test_GD(data, net_G, net_D, device, optimizer_G, optimizer_D, lossFunc
                             shuffle=False,
                             num_workers=opt.n_cpu,
                             pin_memory=torch.cuda.is_available())
-    for i, (x, _) in enumerate(dataLoader):
-        # Adversarial ground truths
-        valid = Variable(Tensor(imgs.size(0), 1).fill_(1.0), requires_grad=False)
-        fake = Variable(Tensor(imgs.size(0), 1).fill_(0.0), requires_grad=False)
 
-        # Configure input
-        real_x = Variable(x).float().to(device)
-
-        # -----------------
-        #  Train Generator
-        # -----------------
-
-        optimizer_G.zero_grad()
-
-        # Sample noise as generator input
-        z = Variable(torch.randn(xn, yn)).float().to(device)
-
-        # Generate a batch of images
-        gen_x = net_G(z)
-
-        # Loss measures generator's ability to fool the discriminator
-        score, _ = net_D(gen_x)
-        g_loss = lossFunc(score, valid)
-
-        g_loss.backward()
-        optimizer_G.step()
-
-        # ---------------------
-        #  Train Discriminator
-        # ---------------------
-
-        optimizer_D.zero_grad()
-
-        # Measure discriminator's ability to classify real from generated samples
-        score, _ = net_D(real_x)
-        real_loss = lossFunc(score, valid)
-        score, _ = net_D(gen_x.detach())
-        fake_loss = lossFunc(score, fake)
-        d_loss = (real_loss + fake_loss) / 2
-
-        d_loss.backward()
-        optimizer_D.step()
-    for epoch in range(num_epochs):
+    for epoch in range(opt.n_epochs):
         for d_index in range(d_steps):
-            # 1. Train D on real+fake
-            D.zero_grad()
+            for i, (x, _) in enumerate(dataLoader):
+                # 1. Train D on real+fake
+                net_D.zero_grad()
 
-            #  1A: Train D on real
-            d_real_data = Variable(d_sampler(d_input_size))
-            d_real_decision = D(preprocess(d_real_data))
-            d_real_error = criterion(d_real_decision, Variable(torch.ones(1)))  # ones = true
-            d_real_error.backward()  # compute/store gradients, but don't change params
+                #  1A: Train D on real
+                d_real_data = Variable(x.view(-1, xn*yn).float().to(device))
+                d_real_decision, _ = net_D(d_real_data)
+                d_real_loss = lossFunc(d_real_decision, Variable(torch.ones_like(d_real_decision).to(device)))  # ones = true
+                d_real_loss.backward()  # compute/store gradients, but don't change params
 
-            #  1B: Train D on fake
-            d_gen_input = Variable(gi_sampler(minibatch_size, g_input_size))
-            d_fake_data = G(d_gen_input).detach()  # detach to avoid training G on these labels
-            d_fake_decision = D(preprocess(d_fake_data.t()))
-            d_fake_error = criterion(d_fake_decision, Variable(torch.zeros(1)))  # zeros = fake
-            d_fake_error.backward()
-            d_optimizer.step()  # Only optimizes D's parameters; changes based on stored gradients from backward()
+                #  1B: Train D on fake
+                d_gen_input = Variable(torch.randn(100).to(device))
+                d_fake_data = net_G(d_gen_input).detach()  # detach to avoid training G on these labels
+                d_fake_decision, _ = net_D(d_fake_data)
+                d_fake_loss = lossFunc(d_fake_decision, Variable(torch.zeros_like(d_fake_decision)).to(device))  # zeros = fake
+                d_fake_loss.backward()
+                d_optimizer.step()  # Only optimizes D's parameters; changes based on stored gradients from backward()
 
         for g_index in range(g_steps):
             # 2. Train G on D's response (but DO NOT train D on these labels)
-            G.zero_grad()
+            net_G.zero_grad()
 
-            gen_input = Variable(gi_sampler(minibatch_size, g_input_size))
-            g_fake_data = G(gen_input)
-            dg_fake_decision = D(preprocess(g_fake_data.t()))
-            g_error = criterion(dg_fake_decision,
-                                Variable(torch.ones(1)))  # we want to fool, so pretend it's all genuine
-
-            g_error.backward()
+            gen_input = Variable(torch.randn(100).to(device))
+            g_fake_data = net_G(gen_input)
+            dg_fake_decision, _ = net_D(g_fake_data)
+            g_loss = lossFunc(dg_fake_decision, Variable(torch.zeros_like(dg_fake_decision).to(device)))  # we want to fool, so pretend it's all genuine
+            g_loss.backward()
             g_optimizer.step()  # Only optimizes G's parameters
     # train end
 
@@ -250,13 +208,11 @@ def train_test_GD(data, net_G, net_D, device, optimizer_G, optimizer_D, lossFunc
 
     predLabels = list()
     for (x, _) in dataLoader:
-        x = Variable(x).float().to(device)  # batch x (data)
+        x = Variable(x.view(-1, xn*yn).float().to(device))  # batch x (data)
         _, label = net_D(x)
-        predicted = torch.max(label.data, 1)[1].cpu()
-        predLabels.append([predicted.numpy()])
-
+        predicted = torch.max(label.data, 1)[1].cpu().numpy()
+        predLabels.append([predicted])
         # test end
-        predLabels = np.concatenate(predLabels, axis=1)
-        # res = ','.join(str(i) for i in res)
+    predLabels = np.concatenate(predLabels, axis=1)
     return (predLabels)
 # end

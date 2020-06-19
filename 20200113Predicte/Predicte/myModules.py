@@ -188,18 +188,12 @@ class Generator(nn.Module):
     def __init__(self, xn, yn):
         super(Generator, self).__init__()
         self.model = nn.Sequential(
-            nn.Linear(xn*yn, 128),
+            nn.Linear(100, 128),
             nn.ReLU(),
             nn.Linear(128, 256),
             nn.ReLU(),
-            nn.Linear(256, 512),
-            nn.ReLU(),
-            nn.Linear(512, 1024),
-            nn.ReLU(),
-            nn.Linear(1024, xn*yn),
-            nn.Tanh(),
+            nn.Linear(256, xn*yn),
         )
-
     def forward(self, z):
         x = self.model(z)
         return (x)
@@ -209,34 +203,19 @@ class Generator(nn.Module):
 class Discriminator(nn.Module):
     def __init__(self, xn, yn):
         super(Discriminator, self).__init__()
+        self.inSize = xn * yn
+        self.fc1 = nn.Linear(self.inSize, int(self.inSize/2))
+        self.fc2 = nn.Linear(int(self.inSize/2), int(self.inSize/4))
 
-        self.model = nn.Sequential(
-            nn.Linear(xn*yn, 1024),
-            nn.LeakyReLU(0.2, inplace=True),
-            nn.Linear(1024, 512),
-            nn.LeakyReLU(0.2, inplace=True),
-            nn.Linear(512, 256),
-            nn.LeakyReLU(0.2, inplace=True),
-            nn.Linear(256, 128),
-            nn.LeakyReLU(0.2, inplace=True),
-            nn.Linear(128, 1),
-            nn.Sigmoid(),
-        )
+        # discriminator layer
+        self.fc31 = nn.Linear(int(self.inSize/4), 1)
 
-        self.classifier = nn.Sequential(
-            nn.Linear(xn * yn, 1024),
-            nn.LeakyReLU(0.2, inplace=True),
-            nn.Linear(1024, 512),
-            nn.LeakyReLU(0.2, inplace=True),
-            nn.Linear(512, 256),
-            nn.LeakyReLU(0.2, inplace=True),
-            nn.Linear(256, 128),
-            nn.LeakyReLU(0.2, inplace=True),
-            nn.Linear(128, 16),
-            nn.Sigmoid(),
-        )
+        # classifier layer
+        self.fc32 = nn.Linear(int(self.inSize/4), int(self.inSize/8))
 
     def forward(self, x):
-        score = self.model(x)
-        label = self.classifier(x)
+        x = F.relu(self.fc1(x))
+        x = F.relu(self.fc2(x))
+        score = torch.sigmoid(F.relu(self.fc31(x)))
+        label = torch.sigmoid(F.relu(self.fc32(x)))
         return (score, label)
