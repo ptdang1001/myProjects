@@ -34,20 +34,20 @@ class CNN(nn.Module):
 class AutoEncoder(nn.Module):
     def __init__(self, xn, yn):
         super(AutoEncoder, self).__init__()
-        self.inSize = xn*yn
+        self.inSize = xn * yn
         self.encoder = nn.Sequential(
-            nn.Linear(self.inSize, int(self.inSize/2)),
+            nn.Linear(self.inSize, int(self.inSize / 2)),
             nn.Tanh(),
-            nn.Linear(int(self.inSize/2), int(self.inSize/4)),
+            nn.Linear(int(self.inSize / 2), int(self.inSize / 4)),
             nn.Tanh(),
-            nn.Linear(int(self.inSize/4), int(self.inSize/8)),
+            nn.Linear(int(self.inSize / 4), int(self.inSize / 8)),
         )
         self.decoder = nn.Sequential(
-            nn.Linear(int(self.inSize/8), int(self.inSize/4)),
+            nn.Linear(int(self.inSize / 8), int(self.inSize / 4)),
             nn.Tanh(),
-            nn.Linear(int(self.inSize/4), int(self.inSize/2)),
+            nn.Linear(int(self.inSize / 4), int(self.inSize / 2)),
             nn.Tanh(),
-            nn.Linear(int(self.inSize/2), self.inSize),
+            nn.Linear(int(self.inSize / 2), self.inSize),
             nn.Sigmoid(),  # compress to a range (0, 1)
         )
         self.classfier = nn.Sequential(
@@ -115,29 +115,29 @@ class AutoEncoder_CNN(nn.Module):
 
 
 class VAE(nn.Module):
-    def __init__(self, zn, xn, yn):
+    def __init__(self, xn, yn):
         super(VAE, self).__init__()
         # encoder layers
-        self.fc1 = nn.Linear(zn * xn * yn, 128)
-        self.fc2 = nn.Linear(128, 64)
-        self.fc3 = nn.Linear(64, 32)
-        self.fc41 = nn.Linear(32, 16)
-        self.fc42 = nn.Linear(32, 16)
-
+        self.inSize = xn * yn
+        self.fc1 = nn.Linear(self.inSize, int(self.inSize / 2))
+        self.fc2 = nn.Linear(int(self.inSize / 2), int(self.inSize / 4))
+        self.fc3 = nn.Linear(int(self.inSize / 4), int(self.inSize / 8))
+        self.fc4 = nn.Linear(int(self.inSize / 8), int(self.inSize / 16))
+        self.fc51 = nn.Linear(int(self.inSize / 16), 3)
+        self.fc52 = nn.Linear(int(self.inSize / 16), 3)
         # decoder layers
-        self.fc5 = nn.Linear(16, 32)
-        self.fc6 = nn.Linear(32, 64)
-        self.fc7 = nn.Linear(64, 128)
-        self.fc81 = nn.Linear(128, zn * xn * yn)
-
-        # classifier layers
-        self.fc82 = nn.Linear(128, 16)
+        self.fc6 = nn.Linear(3, int(self.inSize / 16))
+        self.fc7 = nn.Linear(int(self.inSize / 16), int(self.inSize / 8))
+        self.fc8 = nn.Linear(int(self.inSize / 8), int(self.inSize / 4))
+        self.fc9 = nn.Linear(int(self.inSize / 4), int(self.inSize / 2))
+        self.fc101 = nn.Linear(int(self.inSize / 2), xn * yn)
 
     def encode(self, x):
         x = F.relu(self.fc1(x))
         x = F.relu(self.fc2(x))
         x = F.relu(self.fc3(x))
-        return self.fc41(x), self.fc42(x)
+        x = F.relu(self.fc4(x))
+        return (self.fc51(x), self.fc52(x))
 
     def reparametrize(self, mu, logvar):
         std = logvar.mul(0.5).exp_()
@@ -149,21 +149,16 @@ class VAE(nn.Module):
         return eps.mul(std).add_(mu)
 
     def decode(self, z):
-        z = F.relu(self.fc5(z))
         z = F.relu(self.fc6(z))
         z = F.relu(self.fc7(z))
-        return F.sigmoid(self.fc81(z))
-
-    def classfier(self, z):
-        z = F.relu(self.fc5(z))
-        z = F.relu(self.fc6(z))
-        z = F.relu(self.fc7(z))
-        return (F.sigmoid(self.fc82(z)))
+        z = F.relu(self.fc8(z))
+        z = F.relu(self.fc9(z))
+        return (torch.sigmoid(self.fc101(z)))
 
     def forward(self, x):
         mu, logvar = self.encode(x)
         z = self.reparametrize(mu, logvar)
-        return (self.decode(z), self.classfier(z),  mu, logvar)
+        return (z, self.decode(z))
 
 
 # Fully Connected Network
@@ -182,6 +177,7 @@ class FCN(nn.Module):
         x = self.fc3(x)
         return x
 
+
 # GAN
 # Generator
 class Generator(nn.Module):
@@ -192,8 +188,9 @@ class Generator(nn.Module):
             nn.ReLU(),
             nn.Linear(128, 256),
             nn.ReLU(),
-            nn.Linear(256, xn*yn),
+            nn.Linear(256, xn * yn),
         )
+
     def forward(self, z):
         x = self.model(z)
         return (x)
@@ -204,14 +201,14 @@ class Discriminator(nn.Module):
     def __init__(self, xn, yn):
         super(Discriminator, self).__init__()
         self.inSize = xn * yn
-        self.fc1 = nn.Linear(self.inSize, int(self.inSize/2))
-        self.fc2 = nn.Linear(int(self.inSize/2), int(self.inSize/4))
+        self.fc1 = nn.Linear(self.inSize, int(self.inSize / 2))
+        self.fc2 = nn.Linear(int(self.inSize / 2), int(self.inSize / 4))
 
         # discriminator layer
-        self.fc31 = nn.Linear(int(self.inSize/4), 1)
+        self.fc31 = nn.Linear(int(self.inSize / 4), 1)
 
         # classifier layer
-        self.fc32 = nn.Linear(int(self.inSize/4), int(self.inSize/8))
+        self.fc32 = nn.Linear(int(self.inSize / 4), int(self.inSize / 8))
 
     def forward(self, x):
         x = F.relu(self.fc1(x))

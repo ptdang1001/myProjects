@@ -121,7 +121,7 @@ def train_test_AE(data, net, device, optimizer, lossFunc, opt):
 # end
 
 def train_test_VAE(data, net, device, optimizer, lossFunc, opt):
-    n, zn, xn, yn = data.size()
+    zn, xn, yn = data.size()
     dataSet = myData.MyDataset(data, data)
     dataLoader = DataLoader(dataset=dataSet,
                             batch_size=opt.batch_size,
@@ -131,16 +131,14 @@ def train_test_VAE(data, net, device, optimizer, lossFunc, opt):
     # train start
     for epoch in range(opt.n_epochs):
         for step, (x, _) in enumerate(dataLoader):
-            b_x = Variable(x.view(-1, zn * xn * yn).float().to(device))  # batch data
-            decoded, _, _, _ = net(b_x)
+            b_x = Variable(x.view(-1, xn * yn).float().to(device))  # batch data
+            _, decoded = net(b_x)
             loss = lossFunc(decoded, b_x)
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
-            '''
             if step % 10 == 9:
-                print('Epoch: ', epoch, '| train loss: %.4f' % loss.data.numpy())
-            '''
+                print('Epoch: ', epoch, '| train loss: %.4f' % loss.data.cpu().numpy())
     # train end
 
     # ----------------------------------------------------------test-----------------------------------------
@@ -148,14 +146,14 @@ def train_test_VAE(data, net, device, optimizer, lossFunc, opt):
 
     predLabels = list()
     for (x, y) in dataLoader:
-        b_x = Variable(x.view(-1, zn * xn * yn).float().to(device))  # batch x (data)
-        _, label, _, _ = net(b_x)
-        predicted = torch.max(label.data, 1)[1].cpu()
-        predLabels.append([predicted.numpy()])
-
+        b_x = Variable(x.view(-1, xn * yn).float().to(device))  # batch x (data)
+        feature, _ = net(b_x)
+        predLabels.append([feature.cpu().detach().numpy()])
     # test end
-    predLabels = np.concatenate(predLabels, axis=1)
-    # res = ','.join(str(i) for i in res)
+
+    predLabels = np.hstack(predLabels)
+    zn, xn, yn = predLabels.shape
+    predLabels = np.reshape(predLabels, (xn, yn))
     return (predLabels)
 
 
@@ -178,16 +176,18 @@ def train_test_GAN(data, device, lossFunc, opt, net_G, g_optimizer, net_D, d_opt
                 net_D.zero_grad()
 
                 #  1A: Train D on real
-                d_real_data = Variable(x.view(-1, xn*yn).float().to(device))
+                d_real_data = Variable(x.view(-1, xn * yn).float().to(device))
                 d_real_decision, _ = net_D(d_real_data)
-                d_real_loss = lossFunc(d_real_decision, Variable(torch.ones_like(d_real_decision).to(device)))  # ones = true
+                d_real_loss = lossFunc(d_real_decision,
+                                       Variable(torch.ones_like(d_real_decision).to(device)))  # ones = true
                 d_real_loss.backward()  # compute/store gradients, but don't change params
 
                 #  1B: Train D on fake
                 d_gen_input = Variable(torch.randn(100).to(device))
                 d_fake_data = net_G(d_gen_input).detach()  # detach to avoid training G on these labels
                 d_fake_decision, _ = net_D(d_fake_data)
-                d_fake_loss = lossFunc(d_fake_decision, Variable(torch.zeros_like(d_fake_decision)).to(device))  # zeros = fake
+                d_fake_loss = lossFunc(d_fake_decision,
+                                       Variable(torch.zeros_like(d_fake_decision)).to(device))  # zeros = fake
                 d_fake_loss.backward()
                 d_optimizer.step()  # Only optimizes D's parameters; changes based on stored gradients from backward()
 
@@ -198,7 +198,8 @@ def train_test_GAN(data, device, lossFunc, opt, net_G, g_optimizer, net_D, d_opt
             gen_input = Variable(torch.randn(100).to(device))
             g_fake_data = net_G(gen_input)
             dg_fake_decision, _ = net_D(g_fake_data)
-            g_loss = lossFunc(dg_fake_decision, Variable(torch.zeros_like(dg_fake_decision).to(device)))  # we want to fool, so pretend it's all genuine
+            g_loss = lossFunc(dg_fake_decision, Variable(
+                torch.zeros_like(dg_fake_decision).to(device)))  # we want to fool, so pretend it's all genuine
             g_loss.backward()
             g_optimizer.step()  # Only optimizes G's parameters
 
@@ -209,7 +210,7 @@ def train_test_GAN(data, device, lossFunc, opt, net_G, g_optimizer, net_D, d_opt
 
     predLabels = list()
     for (x, _) in dataLoader:
-        x = Variable(x.view(-1, xn*yn).float().to(device))  # batch x (data)
+        x = Variable(x.view(-1, xn * yn).float().to(device))  # batch x (data)
         _, label = net_D(x)
         predicted = torch.max(label.data, 1)[1].cpu().numpy()
         predLabels.append([predicted])

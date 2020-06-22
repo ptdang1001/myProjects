@@ -12,6 +12,10 @@ import torch
 import torch.nn as nn
 import pandas as pd
 import numpy as np
+from sklearn.cluster import KMeans
+import matplotlib.pyplot as plt
+from mpl_toolkits.mplot3d import Axes3D
+from matplotlib import cm
 
 # my libs
 sys.path.append(os.getcwd())
@@ -101,7 +105,6 @@ def getGANPams(xn, yn, device, lr):
 # end
 
 
-
 def main():
     # parameters
     mean = 0
@@ -173,22 +176,36 @@ def main():
     rowFeatureMap = torch.tensor(rowFeatureMap)
     rowFeatureMap = rowFeatureMap.view(rowFeatureMap.size()[0] * rowFeatureMap.size()[1], rowFeatureMap.size()[2],
                                        rowFeatureMap.size()[3])
+
+    # rowFeatureMap = torch.rand(100, 7, 16)
     # choose cpu or gpu automatically
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     # optFeatureMap data
-    G_net, G_optimizer, D_net, D_optimizer, lossFunc = getGANPams(
+    net, optimizer, lossFunc = getVAEPams(
         rowFeatureMap.size()[1],
         rowFeatureMap.size()[2],
         device,
         runPams.lr)
 
-    predLabels = Predicte.myUtils.myTrainTest.train_test_GAN(
-        rowFeatureMap, device, lossFunc, runPams, G_net, G_optimizer, D_net, D_optimizer)
-
-    predLabels = np.array(predLabels)
-    n = len(predLabels)
-    n2 = len(predLabels[0])
-    print(','.join(str(predLabels[i][j]) for i in range(n)  for j in range(n2)))
+    z = Predicte.myUtils.myTrainTest.train_test_VAE(
+        rowFeatureMap, net, device, optimizer, lossFunc, runPams)
+    estimator = KMeans(n_clusters=3, random_state=0).fit(z)
+    label_pred = estimator.labels_
+    fig = plt.figure(2)
+    ax = Axes3D(fig)
+    X = z[:, 0]
+    Y = z[:, 1]
+    Z = z[:, 2]
+    for x, y, z, s in zip(X, Y, Z, label_pred):
+        c = cm.rainbow(int(255 * s / 9))  # 上色
+        ax.text(x, y, z, s, backgroundcolor=c)  # 标位子
+    ax.set_xlim(X.min(), X.max())
+    ax.set_ylim(Y.min(), Y.max())
+    ax.set_zlim(Z.min(), Z.max())
+    plt.savefig("C:\\Users\\pdang\\Desktop\\test.pdf")
+    plt.show()
+    sys.exit()
+    print(','.join(str(predLabels[i][j]) for i in range(n) for j in range(n2)))
     # predLabels = np.resize(predLabels,(len(samples),len(samples[0]),1))
     predLabels = np.unique(predLabels)
     print(predLabels)
