@@ -152,8 +152,8 @@ def train_test_VAE(data, device, lossFunc, opt, net, optimizer):
 
     # test end
     predLabels = np.vstack(predLabels)
-    an, yn, xn = predLabels.shape
-    predLabels = np.reshape(predLabels, (xn ,yn))
+    zn, xn, yn = predLabels.shape
+    predLabels = np.reshape(predLabels, (zn ,yn))
     return (predLabels)
 
 
