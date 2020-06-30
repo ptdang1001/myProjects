@@ -9,7 +9,7 @@
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=24
 #SBATCH --gres=gpu:p100:1
-#SBATCH --time=00:55:00
+#SBATCH --time=00:60:00
 
 #module load
-python testMain.py #--minusMean $1 --xn $2 --stdBias $3 --numThreshold $4
+python testMain.py --xn $1 --baseTimes $2 --errorStdBias $3

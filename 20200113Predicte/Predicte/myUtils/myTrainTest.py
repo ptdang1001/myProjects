@@ -132,7 +132,7 @@ def train_test_VAE(data, net, device, optimizer, lossFunc, opt):
     for epoch in range(opt.n_epochs):
         for step, (x, _) in enumerate(dataLoader):
             b_x = Variable(x.view(-1, xn * yn).float().to(device))  # batch data
-            _, decoded = net(b_x)
+            _, decoded, _ = net(b_x)
             loss = lossFunc(decoded, b_x)
             optimizer.zero_grad()
             loss.backward()
@@ -145,16 +145,20 @@ def train_test_VAE(data, net, device, optimizer, lossFunc, opt):
     # test start
 
     predLabels = list()
+    features = list()
     for (x, y) in dataLoader:
         b_x = Variable(x.view(-1, xn * yn).float().to(device))  # batch x (data)
-        feature, _ = net(b_x)
-        predLabels.append([feature.cpu().detach().numpy()])
+        feature, _, predicted = net(b_x)
+        features.append([feature.cpu().detach().numpy()])
+        predicted = torch.max(predicted.data, 1)[1].cpu().numpy()
+        predLabels.append(predicted)
     # test end
 
-    predLabels = np.hstack(predLabels)
-    zn, xn, yn = predLabels.shape
-    predLabels = np.reshape(predLabels, (xn, yn))
-    return (predLabels)
+    features = np.hstack(features)
+    zn, xn, yn = features.shape
+    features = np.reshape(features, (xn, yn))
+    predLabels = np.concatenate(predLabels)
+    return (features, predLabels)
 
 
 # end

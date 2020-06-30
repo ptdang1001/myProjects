@@ -13,6 +13,7 @@ import torch.nn as nn
 import pandas as pd
 import numpy as np
 from sklearn.cluster import KMeans
+from sklearn.utils import shuffle
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 from matplotlib import cm
@@ -29,18 +30,15 @@ import Predicte.myUtils.myData
 parser = argparse.ArgumentParser()
 parser.add_argument("--n_epochs", type=int, default=1)
 if torch.cuda.is_available():
-    parser.add_argument("--batch_size", type=int, default=5)
+    parser.add_argument("--batch_size", type=int, default=1)
 else:
-    parser.add_argument("--batch_size", type=int, default=5)
+    parser.add_argument("--batch_size", type=int, default=1)
 parser.add_argument("--lr", type=float, default=0.0001)
 parser.add_argument("--n_cpu", type=int, default=os.cpu_count())
 parser.add_argument("--minusMean", type=int, default=1)
-parser.add_argument("--stdBias", type=int, default=0)
-parser.add_argument("--numThreshold", type=int, default=30)
-parser.add_argument("--xn", type=int, default=300)
+parser.add_argument("--xn", type=int, default=200)
 parser.add_argument("--crType", type=str, default="uniform")
-parser.add_argument("--sampleNum", type=int, default=300)
-parser.add_argument("--baseTimes", type=int, default=1)
+parser.add_argument("--baseTimes", type=int, default=100)
 parser.add_argument("--errorStdBias", type=int, default=0 / 10)
 runPams = parser.parse_args()
 
@@ -126,7 +124,11 @@ def main():
     mateDatas = list(labels_mateDatas[-1][-1])
 
     mateData = pd.DataFrame(mateDatas[0])
-    # mateData = pd.DataFrame(np.random.rand(1000, 1000))
+    mateData_noshuffle = mateData.copy()
+    mateData = shuffle(mateData)
+    mateData = shuffle(mateData.T)
+    mateData = mateData.T
+    #mateData = pd.DataFrame(np.random.rand(1000, 1000))
 
     parts = Predicte.myUtils.myData.mateData2Parts(mateData.copy())
     res = list()
@@ -155,14 +157,13 @@ def main():
     # normalize row and col by std from original 50*50's row and col std
     # rowFeatureMap = np.true_divide(rowFeatureMap, rowStdArr)
     rowFeatureMap = -np.sort(-rowFeatureMap, axis=2)
-    tmp = rowFeatureMap
 
     # normalize col by std from original 50*50' col
     # colFeatureMap = np.true_divide(colFeatureMap, colStdArr)
     # colFeatureMap = -np.sort(-colFeatureMap, axis=2)
 
     # resort them by their mean
-    rowFeatureMap = Predicte.myUtils.myData.getResortMeanFeatureMap(rowFeatureMap[:,:,0:7,:])
+    rowFeatureMap = Predicte.myUtils.myData.getResortMeanFeatureMap(rowFeatureMap[:,:,2:7,:])
     # colFeatureMap = Predicte.myUtils.myData.getResortMeanFeatureMap(colFeatureMap)
 
     # row and col max pooling 7*1652 -> 7*16
@@ -171,8 +172,8 @@ def main():
     # featureMap = np.stack((rowFeatureMap, colFeatureMap), axis=2)
 
     # sort the rows
-    rowFeatureMap = -np.sort(-rowFeatureMap, axis=3)[:,:,:,:]
-
+    rowFeatureMap = -np.sort(-rowFeatureMap, axis=3)[:,:,:,:5]
+    rowFeatureMap_np = rowFeatureMap.copy()
     rowFeatureMap = torch.tensor(rowFeatureMap)
     rowFeatureMap = rowFeatureMap.view(rowFeatureMap.size()[0] * rowFeatureMap.size()[1], rowFeatureMap.size()[2],
                                        rowFeatureMap.size()[3])
@@ -187,23 +188,47 @@ def main():
         device,
         runPams.lr)
 
-    z = Predicte.myUtils.myTrainTest.train_test_VAE(
+    z, label_pred = Predicte.myUtils.myTrainTest.train_test_VAE(
         rowFeatureMap, net, device, optimizer, lossFunc, runPams)
-    estimator = KMeans(n_clusters=3, random_state=0).fit(z)
-    label_pred = estimator.labels_
+    fileName = "C:\\Users\\pdang\\Desktop\\"
+    pams = str(runPams.xn)+ "_" + str(runPams.baseTimes) + "_" + str(runPams.errorStdBias)
+
+    # save labels
+    label_file = fileName + pams + "_predLable.csv"
+    np.savetxt( label_file, np.reshape(label_pred, (20, int(len(label_pred)/20))), delimiter=',', fmt='%d')
+
+    # save row feature map
+    feature_file = fileName + pams + "_rowFeatureMap.npy"
+    np.save(file=feature_file, arr=rowFeatureMap_np)
+    print(label_pred)
+    sys.exit()
+    #estimator = KMeans(n_clusters=2, random_state=0).fit(z)
+    #label_pred = estimator.labels_
+
+    mark = ['or', 'ob', 'og', 'ok', '^r', '+r', 'sr', 'dr', '<r', 'pr']
+    # 这里'or'代表中的'o'代表画圈，'r'代表颜色为红色，后面的依次类推
+    j = 0
+    for i in label_pred:
+        plt.plot([z[j:j + 1, 0]], [z[j:j + 1, 1]], mark[i], markersize=5)
+        j += 1
+    '''
     fig = plt.figure(2)
-    ax = Axes3D(fig)
+    ax = Axes3D(fig)  # 3D 图
+    # x, y, z 的数据值
     X = z[:, 0]
     Y = z[:, 1]
     Z = z[:, 2]
-    for x, y, z, s in zip(X, Y, Z, label_pred):
+    values = label_pred  # 标签值
+    for x, y, z, s in zip(X, Y, Z, values):
         c = cm.rainbow(int(255 * s / 9))  # 上色
         ax.text(x, y, z, s, backgroundcolor=c)  # 标位子
     ax.set_xlim(X.min(), X.max())
     ax.set_ylim(Y.min(), Y.max())
     ax.set_zlim(Z.min(), Z.max())
-    plt.savefig("C:\\Users\\pdang\\Desktop\\test.pdf")
+    '''
+    #plt.savefig("C:\\Users\\pdang\\Desktop\\test.pdf")
     plt.show()
+    print("end")
     sys.exit()
     print(','.join(str(predLabels[i][j]) for i in range(n) for j in range(n2)))
     # predLabels = np.resize(predLabels,(len(samples),len(samples[0]),1))

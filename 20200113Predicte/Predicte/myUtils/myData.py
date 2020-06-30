@@ -123,8 +123,10 @@ def mateData2Parts(mateData):
             part.loc["colStd", :] = colStd
             parts.append(part)
             break
-        #randomInitRowIdx = np.random.randint(len(mateData), size=5)
-        colCorectEf = np.corrcoef(mateData.iloc[:5, :].T)
+        randomInitRowIdx = np.random.randint(len(mateData), size=5)
+        colCorectEf = np.corrcoef(mateData.iloc[randomInitRowIdx, :].T)
+        #colCorectEf = np.corrcoef(mateData.iloc[:5, :].T)
+        colCorectEf[np.tril_indices(colCorectEf.shape[0], 0)] = -1000
         colCorectEf[np.tril_indices(colCorectEf.shape[0], 0)] = -1000
         colMaxIdx = getMaxIdx_jit(colCorectEf, partColLen)
         rowCorectEf = np.corrcoef(mateData.iloc[:, colMaxIdx])
