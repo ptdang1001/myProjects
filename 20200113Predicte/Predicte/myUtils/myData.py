@@ -117,17 +117,19 @@ def mateData2Parts(mateData):
         if mateData.shape[0] == partRowLen and mateData.shape[1] == partColLen:
             part = mateData
             part = part - np.mean(part)
+            '''
             rowStd = np.std(part, axis=1)
             colStd = np.std(part, axis=0)
             part.loc[:, "rowStd"] = rowStd
             part.loc["colStd", :] = colStd
+            '''
             parts.append(part)
             break
         randomInitRowIdx = np.random.randint(len(mateData), size=5)
-        colCorectEf = np.corrcoef(mateData.iloc[randomInitRowIdx, :].T)
-        #colCorectEf = np.corrcoef(mateData.iloc[:5, :].T)
+        #colCorectEf = np.corrcoef(mateData.iloc[randomInitRowIdx, :].T)
+        colCorectEf = np.corrcoef(mateData.iloc[:5, :].T)
         colCorectEf[np.tril_indices(colCorectEf.shape[0], 0)] = -1000
-        colCorectEf[np.tril_indices(colCorectEf.shape[0], 0)] = -1000
+        #colCorectEf[np.tril_indices(colCorectEf.shape[0], 0)] = -1000
         colMaxIdx = getMaxIdx_jit(colCorectEf, partColLen)
         rowCorectEf = np.corrcoef(mateData.iloc[:, colMaxIdx])
         rowCorectEf[np.tril_indices(rowCorectEf.shape[0], 0)] = -1000
@@ -139,17 +141,74 @@ def mateData2Parts(mateData):
         #part minus row mean value
         part = part - np.mean(part.values, axis=1).reshape(50,1)
         part = np.true_divide(part, np.std(part.values, axis=1).reshape(50,1))
-
+        '''
         # get row std and col std
         rowStd = np.std(part, axis=1)
         colStd = np.std(part, axis=0)
         part.loc[:, "rowStd"] = rowStd
         part.loc["colStd", :] = colStd
+        '''
         parts.append(part)
     return (parts)
 
 
 # end
+
+
+def mateData2Parts_new(mateData):
+    partRowLen = 50
+    patternLen = partRowLen
+    partColLen = partRowLen
+    parts = list()
+    loopNum = int(len(mateData) / partRowLen)
+    sizeNum = [5, 10, 20, 50]
+    for i in range(loopNum):
+        if mateData.shape[0] == partRowLen and mateData.shape[1] == partColLen:
+            part = mateData
+            part = part - np.mean(part)
+            '''
+            rowStd = np.std(part, axis=1)
+            colStd = np.std(part, axis=0)
+            part.loc[:, "rowStd"] = rowStd
+            part.loc["colStd", :] = colStd
+            '''
+            parts.append(part)
+            break
+
+        # get the part row and col idx
+        randomInitRowIdx = np.random.randint(len(mateData), size=sizeNum[0])
+        initRowIdx = randomInitRowIdx
+        partRowIdx = list()
+        partColIdx = list()
+        for sn in sizeNum:
+            colCorectEf = np.corrcoef(mateData.iloc[initRowIdx, :].T)
+            colCorectEf[np.tril_indices(colCorectEf.shape[0], 0)] = -1000
+            #colCorectEf[np.tril_indices(colCorectEf.shape[0], 0)] = -1000
+            colMaxIdx = getMaxIdx_jit(colCorectEf.copy(), sn)
+            rowCorectEf = np.corrcoef(mateData.iloc[:, colMaxIdx])
+            rowCorectEf[np.tril_indices(rowCorectEf.shape[0], 0)] = -1000
+            rowMaxIdx = getMaxIdx_jit(rowCorectEf.copy(), sn)
+            initRowIdx = rowMaxIdx
+            partRowIdx = rowMaxIdx
+            partColIdx = colMaxIdx
+
+        # get one part from mateData by row and col idx.
+        part = mateData.iloc[partRowIdx, partColIdx].copy()
+        mateData = mateData.drop(index=part.index)
+        mateData = mateData.drop(columns=part.columns)
+
+        #part minus row mean value
+        part = part - np.mean(part.values, axis=1).reshape(50,1)
+        part = np.true_divide(part, np.std(part.values, axis=1).reshape(50,1))
+        '''
+        # get row std and col std
+        rowStd = np.std(part, axis=1)
+        colStd = np.std(part, axis=0)
+        part.loc[:, "rowStd"] = rowStd
+        part.loc["colStd", :] = colStd
+        '''
+        parts.append(part)
+    return (parts)
 
 def getSamplesRowColStd(part):
     sampleNum = 5
@@ -957,10 +1016,10 @@ def getL1SpeBaseData(crType, minusMean, errorStdBias, blockNum, baseTimes, zn, x
                 block = torch.matmul(c,r) * baseTimes
                 blocks.append((block + error).numpy())
     else:
-        base1 = [1] * int(xn * (2 / 4))
-        base2 = [-1] * int(xn * (2 / 4))
-        #base3 = [0] * int(xn * (1 / 5))
-        bases = np.concatenate((base1, base2))
+        base1 = [1] * int(xn * (2 / 5))
+        base2 = [-1] * int(xn * (2 / 5))
+        base3 = [0] * int(xn * (1 / 5))
+        bases = np.concatenate((base1, base2, base3))
         bases = torch.tensor(bases)
         if minusMean == 1:
             for _ in range(blocksNum):

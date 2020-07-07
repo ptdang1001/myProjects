@@ -30,15 +30,15 @@ import Predicte.myUtils.myData
 parser = argparse.ArgumentParser()
 parser.add_argument("--n_epochs", type=int, default=1)
 if torch.cuda.is_available():
-    parser.add_argument("--batch_size", type=int, default=1)
+    parser.add_argument("--batch_size", type=int, default=5)
 else:
-    parser.add_argument("--batch_size", type=int, default=1)
+    parser.add_argument("--batch_size", type=int, default=5)
 parser.add_argument("--lr", type=float, default=0.0001)
 parser.add_argument("--n_cpu", type=int, default=os.cpu_count())
 parser.add_argument("--minusMean", type=int, default=1)
 parser.add_argument("--xn", type=int, default=200)
 parser.add_argument("--crType", type=str, default="uniform")
-parser.add_argument("--baseTimes", type=int, default=100)
+parser.add_argument("--baseTimes", type=int, default=1)
 parser.add_argument("--errorStdBias", type=int, default=0 / 10)
 runPams = parser.parse_args()
 
@@ -128,9 +128,25 @@ def main():
     mateData = shuffle(mateData)
     mateData = shuffle(mateData.T)
     mateData = mateData.T
+    mateData = mateData_noshuffle
     #mateData = pd.DataFrame(np.random.rand(1000, 1000))
 
-    parts = Predicte.myUtils.myData.mateData2Parts(mateData.copy())
+    parts = Predicte.myUtils.myData.mateData2Parts_new(mateData.copy())
+    # analyze the slicing methos
+
+    partsAnalysRes = list()
+    partsAnalysRes.append(runPams.xn)
+    partsAnalysRes.append(runPams.baseTimes)
+    partsAnalysRes.append("N(0-"+str(runPams.errorStdBias) + ")")
+    for part in parts:
+        rowNum = np.sum(part.index < 200)
+        colNum = np.sum(part.columns < 200)
+        partRes = str(rowNum) + '*' + str(colNum) + '/' + str(runPams.xn)
+        partsAnalysRes.append(partRes)
+    partsAnalysRes = pd.DataFrame(partsAnalysRes).T
+    fileName = "C:\\Users\\pdang\\Desktop\\my.csv"
+    partsAnalysRes.to_csv(fileName, mode="a", index=False, header=False)
+    sys.eixt()
     res = list()
     with Pool(os.cpu_count()) as p:
         res = p.map(Predicte.myUtils.myData.getSamplesRowColStd, parts)
@@ -190,6 +206,10 @@ def main():
 
     z, label_pred = Predicte.myUtils.myTrainTest.train_test_VAE(
         rowFeatureMap, net, device, optimizer, lossFunc, runPams)
+    #estimator = KMeans(n_clusters=3, random_state=0).fit(z)
+    #label_pred = estimator.labels_
+    print(np.reshape(label_pred, (20, int(len(label_pred)/20))))
+    '''
     fileName = "C:\\Users\\pdang\\Desktop\\"
     pams = str(runPams.xn)+ "_" + str(runPams.baseTimes) + "_" + str(runPams.errorStdBias)
 
@@ -204,14 +224,15 @@ def main():
     sys.exit()
     #estimator = KMeans(n_clusters=2, random_state=0).fit(z)
     #label_pred = estimator.labels_
-
+    '''
+    '''
     mark = ['or', 'ob', 'og', 'ok', '^r', '+r', 'sr', 'dr', '<r', 'pr']
     # 这里'or'代表中的'o'代表画圈，'r'代表颜色为红色，后面的依次类推
     j = 0
     for i in label_pred:
         plt.plot([z[j:j + 1, 0]], [z[j:j + 1, 1]], mark[i], markersize=5)
         j += 1
-    '''
+    
     fig = plt.figure(2)
     ax = Axes3D(fig)  # 3D 图
     # x, y, z 的数据值
@@ -225,9 +246,10 @@ def main():
     ax.set_xlim(X.min(), X.max())
     ax.set_ylim(Y.min(), Y.max())
     ax.set_zlim(Z.min(), Z.max())
-    '''
+
     #plt.savefig("C:\\Users\\pdang\\Desktop\\test.pdf")
     plt.show()
+    '''
     print("end")
     sys.exit()
     print(','.join(str(predLabels[i][j]) for i in range(n) for j in range(n2)))

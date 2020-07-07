@@ -168,10 +168,10 @@ class VAE(nn.Module):
         self.inSize = xn * yn
         self.fc1 = nn.Linear(self.inSize, int(self.inSize / 2))
         self.fc2 = nn.Linear(int(self.inSize / 2), int(self.inSize / 4))
-        self.fc31 = nn.Linear(int(self.inSize / 4), 2)
-        self.fc32 = nn.Linear(int(self.inSize / 4), 2)
+        self.fc31 = nn.Linear(int(self.inSize / 4), 4)
+        self.fc32 = nn.Linear(int(self.inSize / 4), 4)
         # decoder layers
-        self.fc4 = nn.Linear(2, int(self.inSize / 4))
+        self.fc4 = nn.Linear(4, int(self.inSize / 4))
         self.fc5 = nn.Linear(int(self.inSize / 4), int(self.inSize / 2))
         self.fc61 = nn.Linear(int(self.inSize / 2), xn * yn)
 
