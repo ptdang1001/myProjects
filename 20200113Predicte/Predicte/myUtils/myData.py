@@ -107,7 +107,7 @@ def getLabelFrRCIdx(rowIdx, colIdx, patternLen):
 
 
 # @jit
-def mateData2Parts(mateData):
+def mateData2Parts_old(mateData):
     partRowLen = 50
     patternLen = partRowLen
     partColLen = partRowLen
@@ -139,8 +139,10 @@ def mateData2Parts(mateData):
         mateData = mateData.drop(columns=part.columns)
 
         #part minus row mean value
-        part = part - np.mean(part.values, axis=1).reshape(50,1)
-        part = np.true_divide(part, np.std(part.values, axis=1).reshape(50,1))
+        part = part - np.mean(part.values, axis=1).reshape(patternLen,1)
+        std = np.std(part.values, axis=1).reshape(patternLen, 1)
+        std[std==0.0] = 1.0
+        part = np.true_divide(part, std)
         '''
         # get row std and col std
         rowStd = np.std(part, axis=1)
@@ -155,7 +157,7 @@ def mateData2Parts(mateData):
 # end
 
 
-def mateData2Parts_new(mateData):
+def mateData2Parts(mateData):
     partRowLen = 50
     patternLen = partRowLen
     partColLen = partRowLen
@@ -166,12 +168,10 @@ def mateData2Parts_new(mateData):
         if mateData.shape[0] == partRowLen and mateData.shape[1] == partColLen:
             part = mateData
             part = part - np.mean(part)
-            '''
             rowStd = np.std(part, axis=1)
             colStd = np.std(part, axis=0)
             part.loc[:, "rowStd"] = rowStd
             part.loc["colStd", :] = colStd
-            '''
             parts.append(part)
             break
 
@@ -198,15 +198,15 @@ def mateData2Parts_new(mateData):
         mateData = mateData.drop(columns=part.columns)
 
         #part minus row mean value
-        part = part - np.mean(part.values, axis=1).reshape(50,1)
-        part = np.true_divide(part, np.std(part.values, axis=1).reshape(50,1))
-        '''
+        part = part - np.mean(part.values, axis=1).reshape(patternLen, 1)
+        std = np.std(part.values, axis=1).reshape(partRowLen, 1)
+        std[std==0.0]=1.0
+        part = np.true_divide(part, std)
         # get row std and col std
         rowStd = np.std(part, axis=1)
         colStd = np.std(part, axis=0)
         part.loc[:, "rowStd"] = rowStd
         part.loc["colStd", :] = colStd
-        '''
         parts.append(part)
     return (parts)
 
@@ -721,22 +721,27 @@ def getNewPart(samples, mateData):
     # update partition by theshold svd
     waitColIdx = list(set(list(mateData.columns)) - set(allColIdx))
     for colIdx in waitColIdx:
+        if len(newPart.columns) > 300:
+            break
         _, s, _ = np.linalg.svd(newPart.values)
         waitCol = mateData.loc[maxRowCountIdx, colIdx].values.reshape(len(maxRowCountIdx), 1)
         tmpPart = np.concatenate((newPart.values, waitCol), axis=1)
         _, s_new, _ = np.linalg.svd(tmpPart)
-        if s_new[1] < 2 * s[1]:
+        if s_new[1]/s_new[0] <= s[1]/s[0]:
             newPart.loc[maxRowCountIdx, colIdx] = mateData.loc[maxRowCountIdx, colIdx]
+
     allColIdx = list(newPart.columns)
 
     # update the new partition thru row side
     waitRowIdx = list(set(list(mateData.index)) - set(maxRowCountIdx))
     for rowIdx in waitRowIdx:
+        if len(newPart.index) > 300:
+            break
         _, s, _ = np.linalg.svd(newPart.values)
         waitRow = mateData.loc[rowIdx, allColIdx].values.reshape(1, len(allColIdx))
         tmpPart = np.concatenate((newPart.values, waitRow), axis=0)
         _, s_new, _ = np.linalg.svd(tmpPart)
-        if s_new[1] < 2 * s[1]:
+        if s_new[1]/s_new[0] <= s[1]/s[0]:
             newPart.loc[rowIdx, allColIdx] = mateData.loc[rowIdx, allColIdx]
     return (newPart)
 
