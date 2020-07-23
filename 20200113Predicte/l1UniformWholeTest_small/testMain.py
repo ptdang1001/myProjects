@@ -39,8 +39,13 @@ parser.add_argument("--n_cpu", type=int, default=os.cpu_count())
 parser.add_argument("--minusMean", type=int, default=1)
 parser.add_argument("--xn", type=int, default=200)
 parser.add_argument("--crType", type=str, default="uniform")
+<<<<<<< HEAD
 parser.add_argument("--baseTimes", type=int, default=1)
 parser.add_argument("--errorStdBias", type=int, default=2)
+=======
+parser.add_argument("--baseTimes", type=int, default=10)
+parser.add_argument("--errorStdBias", type=int, default=0 / 10)
+>>>>>>> bc27f9ef45248b5553a0507017e7bb0f57f45632
 runPams = parser.parse_args()
 
 
@@ -133,10 +138,15 @@ def main():
     mateData = shuffle(mateData)
     mateData = shuffle(mateData.T)
     mateData = mateData.T
+<<<<<<< HEAD
+=======
+    mateData = mateData_noshuffle
+>>>>>>> bc27f9ef45248b5553a0507017e7bb0f57f45632
     # mateData = pd.DataFrame(np.random.rand(1000, 1000))
 
     # get partitions
     parts = Predicte.myUtils.myData.mateData2Parts(mateData.copy())
+<<<<<<< HEAD
     #parts = [ part.abs() for part in parts]
     for _ in range(runPams.n_inner_epochs):
         res = list()
@@ -260,6 +270,107 @@ def main():
             newParts.append(res.get())
         parts = newParts
     # caculate the match degree
+=======
+
+    res = list()
+    with Pool(os.cpu_count()) as p:
+        res = p.map(Predicte.myUtils.myData.getSamplesRowColStd, parts)
+    # splite samples, samplesArr, rowStdArr, colStdArr from res
+    samples = list()
+    samplesArr = list()
+    rowStdArr = list()
+    # colStdArr = list()
+    for r in res:
+        samples.append(r[0])
+        samplesArr.append(r[1])
+        rowStdArr.append(r[2])
+        # colStdArr.append(r[3])
+    samplesArr = np.stack(samplesArr)
+    # rowStdArr = np.stack(rowStdArr)
+    # colStdArr = np.stack(colStdArr)
+
+    # get bases matrix
+    basesMtrx, baseTypeNumAfterKmean, baseIdAfterKMeans = Predicte.myUtils.myData.getBasesMtrxAfterKmean()
+    # get row and col feature map: (7*7) * (7*1652)
+    rowFeatureMap = np.matmul(samplesArr, (basesMtrx.iloc[:, 0:7].values.T))
+    # colFeatureMap = np.matmul(samplesArr.transpose((0, 1, 3, 2)), (basesMtrx.iloc[:, 0:7].values.T))
+
+    # normalize row and col by std from original 50*50's row and col std
+    # rowFeatureMap = np.true_divide(rowFeatureMap, rowStdArr)
+    rowFeatureMap = -np.sort(-rowFeatureMap, axis=2)
+
+    # normalize col by std from original 50*50' col
+    # colFeatureMap = np.true_divide(colFeatureMap, colStdArr)
+    # colFeatureMap = -np.sort(-colFeatureMap, axis=2)
+
+    # resort them by their mean
+    rowFeatureMap = Predicte.myUtils.myData.getResortMeanFeatureMap(rowFeatureMap[:, :, 2:7, :])
+    # colFeatureMap = Predicte.myUtils.myData.getResortMeanFeatureMap(colFeatureMap)
+
+    # row and col max pooling 7*1652 -> 7*16
+    rowFeatureMap = Predicte.myUtils.myData.myMaxPooling(rowFeatureMap, baseTypeNumAfterKmean)
+    # colFeatureMap = Predicte.myUtils.myData.myMaxPooling(colFeatureMap, baseTypeNumAfterKmean)
+    # featureMap = np.stack((rowFeatureMap, colFeatureMap), axis=2)
+
+    # sort the rows
+    rowFeatureMap = -np.sort(-rowFeatureMap, axis=3)[:, :, :, :5]
+    rowFeatureMap_np = rowFeatureMap.copy()
+    rowFeatureMap = torch.tensor(rowFeatureMap)
+    rowFeatureMap = rowFeatureMap.view(rowFeatureMap.size()[0] * rowFeatureMap.size()[1], rowFeatureMap.size()[2],
+                                       rowFeatureMap.size()[3])
+
+    # rowFeatureMap = torch.rand(100, 7, 16)
+    # choose cpu or gpu automatically
+    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+    # optFeatureMap data
+    net, optimizer, lossFunc = getVAEPams(
+        rowFeatureMap.size()[1],
+        rowFeatureMap.size()[2],
+        device,
+        runPams.lr)
+
+    z, predLabels = Predicte.myUtils.myTrainTest.train_test_VAE(
+        rowFeatureMap, net, device, optimizer, lossFunc, runPams)
+    #kmeans_estimator = KMeans(n_clusters=2, random_state=0).fit(z)
+    #kmeans_label_pred = kmeans_estimator.labels_
+
+    labelType = np.unique(predLabels)
+    classNum = len(labelType)
+    predLabels = np.resize(predLabels, (len(samples), len(samples[0]), 1))
+
+
+    # get update row and col indices
+    # initial the new empty samples list
+    allNewSamples = list()
+    for _ in range(classNum):
+        allNewSamples.append([])
+
+    # re generate the samples by their generated label
+    sampleSetNum = len(samples)
+    samplesNum = len(samples[0])
+    for i in range(sampleSetNum):
+        for j in range(samplesNum):
+            label = predLabels[i][j]
+            idx = np.where(labelType == label.item())[0][0]
+            allNewSamples[idx].append(samples[i][j])
+
+    # get new expand samples from mateData
+    # test = Predicte.myUtils.myData.getNewPart(allNewSamples[0], mateData)
+
+    pool = Pool(os.cpu_count())
+    tmpResults = list()
+    for samples in allNewSamples:
+        tmpResults.append(pool.apply_async(Predicte.myUtils.myData.getNewPart, args=(samples, mateData)))
+    pool.close()
+    pool.join()
+
+    # get new partitions
+    newParts = list()
+    for res in tmpResults:
+        newParts.append(res.get())
+
+    #caculate the match degree
+>>>>>>> bc27f9ef45248b5553a0507017e7bb0f57f45632
     matchLabel = list()
     for newPart in newParts:
         if len(newPart) == 0:
@@ -270,7 +381,11 @@ def main():
         accuracy = ((matchRowLen * matchColLen) / (yn * yn)) * 100
         accuracy = np.around(accuracy, decimals=2)
         matchLabel.append(accuracy)
+<<<<<<< HEAD
     # matchLabel = ','.join(str(l) for l in matchLabel)
+=======
+    #matchLabel = ','.join(str(l) for l in matchLabel)
+>>>>>>> bc27f9ef45248b5553a0507017e7bb0f57f45632
 
     # output the results
     res = list()
@@ -281,6 +396,7 @@ def main():
         res.append(label)
     res = pd.DataFrame(res)
     res = res.T
+<<<<<<< HEAD
     print(res)
     sys.exit()
     pathName = "C:/Users/pdang/Desktop/"
@@ -288,6 +404,11 @@ def main():
     res.to_csv(fileName, mode="a", index=False, header=False)
     print("end")
     print("end")
+=======
+    pathName = "C:/Users/pdang/Desktop/"
+    fileName = pathName + "finalRes_U_20200707.csv"
+    res.to_csv(fileName, mode="a", index=False, header=False)
+>>>>>>> bc27f9ef45248b5553a0507017e7bb0f57f45632
     return ()
 
 
