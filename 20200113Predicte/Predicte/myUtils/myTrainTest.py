@@ -14,6 +14,7 @@ from torch.utils.data import DataLoader
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 import myEvaluation
 import myData
+import myEvaluation
 
 
 def train_test(label, data, Net, device, optimizer, lossFunc, opt):
@@ -221,4 +222,89 @@ def train_test_GAN(data, device, lossFunc, opt, net_G, g_optimizer, net_D, d_opt
         # test end
     predLabels = np.concatenate(predLabels, axis=1)
     return (predLabels)
+# end
+
+def train_test_FCN(data, labels, net, device, optimizer, lossFunc, opt):
+    zn, xn, yn = data.size()
+    dataSet = myData.MyDataset(data, labels)
+    dataLoader = DataLoader(dataset=dataSet,
+                            batch_size=opt.batch_size,
+                            shuffle=True,
+                            num_workers=opt.n_cpu,
+                            pin_memory=torch.cuda.is_available())
+    # train start
+    for epoch in range(opt.n_epochs):
+        for step, (x, y) in enumerate(dataLoader):
+            #b_x = Variable(x.view(-1, xn * yn).float().to(device))  # batch data
+            b_x = Variable(x.to(device))
+            b_y = Variable(y.to(device))  # batch label
+            output = net(b_x)
+            loss = lossFunc(output, b_y)
+            optimizer.zero_grad()
+            loss.backward()
+            optimizer.step()
+            if step % 10 == 9:
+                print('Epoch: ', epoch, '| train loss: %.4f' % loss.data.cpu().numpy())
+    # train end
+
+    # ----------------------------------------------------------test-----------------------------------------
+    # test start
+    dataSet = myData.MyDataset(data, labels)                       
+    dataLoader = DataLoader(dataset=dataSet,
+                             batch_size=opt.batch_size,
+                             shuffle=False,
+                             num_workers=opt.n_cpu,
+                             pin_memory=torch.cuda.is_available())
+
+    rmse = 0.0  # root mean square error
+    acc = 0.0  # Accuracy
+    SE = 0.0  # Sensitivity (Recall)
+    PC = 0.0  # Precision
+    F1 = 0.0  # F1 Score
+    JS = 0.0  # Jaccard Similarity
+    ytrue_ypred = list()
+    length = 0
+    for (x, y) in dataLoader:
+        b_x = Variable(x.to(device))  # batch data
+        b_y = Variable(y.to(device))  # batch y (label)
+        outputs = torch.sigmoid(net(b_x))
+        predicted = torch.max(outputs.data, 1)[1].cpu()
+
+        b_y = b_y.cpu()
+        ytrue_ypred.append([b_y.numpy(), predicted.numpy()])
+        acc += myEvaluation.get_accuracy(b_y, predicted)
+        '''
+        rmse += myEvaluation.get_RMSE(b_y, predicted)
+        
+        SE += myEvaluation.get_sensitivity(b_y, predicted)
+        PC += myEvaluation.get_precision(b_y, predicted)
+        F1 += myEvaluation.get_F1(b_y, predicted)
+        JS += myEvaluation.get_JS(b_y, predicted)
+        '''
+        length += 1
+    # test end
+
+    #res = [rmse, acc, SE, PC, F1, JS]
+    #res = [round(r / length, 2) for r in res]
+    # res = ','.join(str(i) for i in res)
+    return (acc/length, ytrue_ypred)
+
+
+    predLabels = list()
+    features = list()
+    for (x, y) in dataLoader:
+        b_x = Variable(x.view(-1, xn * yn).float().to(device))  # batch x (data)
+        feature, _, predicted = net(b_x)
+        features.append([feature.cpu().detach().numpy()])
+        predicted = torch.max(predicted.data, 1)[1].cpu().numpy()
+        predLabels.append(predicted)
+    # test end
+
+    features = np.hstack(features)
+    zn, xn, yn = features.shape
+    features = np.reshape(features, (xn, yn))
+    predLabels = np.concatenate(predLabels)
+    return (features, predLabels)
+
+
 # end

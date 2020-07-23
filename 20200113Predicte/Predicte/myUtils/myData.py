@@ -9,7 +9,7 @@ import torch
 import numpy as np
 import pandas as pd
 from numba import jit
-
+import pysnooper
 from functools import lru_cache
 # my libs
 
@@ -49,7 +49,7 @@ def getMaxIdx_jit(corectEf, num):
     while 1:
         if len(set(maxIdx)) >= num:
             break
-        max = 0
+        max = -10000
         r = 0
         c = 0
         for i in range(rowNum - 1):
@@ -68,6 +68,31 @@ def getMaxIdx_jit(corectEf, num):
 
 # end
 
+@jit(nopython=True)
+def getMaxIdx_jit_new(corectEf, num):
+    maxIdx = list()
+    rowNum = corectEf.shape[0]
+    colNum = corectEf.shape[1]
+    for _ in range(num * 2):
+        if len(set(maxIdx)) >= num:
+            break
+        max = 0
+        r = 0
+        c = 0
+        for i in range(rowNum - 1):
+            for j in range(i + 1, colNum):
+                if corectEf[i][j] > max:
+                    max = corectEf[i][j]
+                    r = i
+                    c = j
+        maxIdx.append(r)
+        maxIdx.append(c)
+        corectEf[r][c] = -1000
+    maxIdx = list(set(maxIdx))[:num]
+    maxIdx.sort()
+    return (maxIdx)
+
+
 def getMaxIdx(corectEf, num):
     maxIdx = list()
     while len(maxIdx) < num:
@@ -77,6 +102,30 @@ def getMaxIdx(corectEf, num):
         maxIdx = np.unique(maxIdx)
     maxIdx = maxIdx[:num]
     return (maxIdx)
+
+
+# end
+
+def getMaxIdx_new(corectEf, num):
+    value = np.argpartition(corectEf.ravel(), -num)[-num:]
+    i2d = np.unravel_index(value, corectEf.shape)
+    idx = np.append(i2d[0], i2d[1])
+    idx = np.unique(idx)
+    return (idx)
+
+
+# end
+
+
+def getMaxIdx_bigSize(corectEf, num):
+    # corectEf = torch.tensor(corectEf)
+    col_max_values = np.max(corectEf, axis=0)
+    col_max_idx = col_max_values.argsort()[::-1][0:num]
+    # idx = torch.max(corectEf, dim=0)[0]
+    # idx = torch.max(a)[1]
+    # values, _ = corectEf.topk(1, dim=0, largest=True, sorted=True)
+    # _, idx = values.topk(num)
+    return (col_max_idx)
 
 
 # end
@@ -106,15 +155,27 @@ def getLabelFrRCIdx(rowIdx, colIdx, patternLen):
     return (rn * cn)
 
 
+@jit(nopython=True)
+def getcorrcoef(mtrx):
+    return (np.corrcoef(mtrx))
+
+
+# end
+
 # @jit
-def mateData2Parts(mateData):
+@pysnooper.snoop()
+def mateData2Parts_old(mateData):
     partRowLen = 50
     patternLen = partRowLen
     partColLen = partRowLen
+    xn, yn = mateData.shape
+    loopNum = yn if xn > yn else xn
     parts = list()
-    loopNum = int(len(mateData) / partRowLen)
+    # loopNum = int(len(mateData) / partRowLen)
     for i in range(loopNum):
-        if mateData.shape[0] == partRowLen and mateData.shape[1] == partColLen:
+
+        if mateData.shape[0] <= partRowLen or mateData.shape[1] <= partColLen:
+            break
             part = mateData
             part = part - np.mean(part)
             '''
@@ -126,21 +187,35 @@ def mateData2Parts(mateData):
             parts.append(part)
             break
         randomInitRowIdx = np.random.randint(len(mateData), size=5)
-        #colCorectEf = np.corrcoef(mateData.iloc[randomInitRowIdx, :].T)
-        colCorectEf = np.corrcoef(mateData.iloc[:5, :].T)
+        colCorectEf = np.corrcoef(mateData.iloc[randomInitRowIdx, :].T)
+        test = getcorrcoef(mateData.iloc[randomInitRowIdx, :].T.values)
+        # colCorectEf = np.corrcoef(mateData.iloc[:5, :].T)
         colCorectEf[np.tril_indices(colCorectEf.shape[0], 0)] = -1000
-        #colCorectEf[np.tril_indices(colCorectEf.shape[0], 0)] = -1000
-        colMaxIdx = getMaxIdx_jit(colCorectEf, partColLen)
+        # st = time.time()
+        # colMaxIdx = getMaxIdx_jit(colCorectEf, partColLen)
+        # colMaxIdx = getMaxIdx_new(colCorectEf, partColLen)
+        # colMaxIdx = getMaxIdx_jit_new(colCorectEf, partColLen)
+
+        colMaxIdx = getMaxIdx_bigSize(colCorectEf, partColLen)
+        # print(time.time() - st)
+
         rowCorectEf = np.corrcoef(mateData.iloc[:, colMaxIdx])
         rowCorectEf[np.tril_indices(rowCorectEf.shape[0], 0)] = -1000
-        rowMaxIdx = getMaxIdx_jit(rowCorectEf, partRowLen)
+
+        # rowMaxIdx = getMaxIdx_jit(rowCorectEf, partRowLen)
+        # rowMaxIdx = getMaxIdx_new(rowCorectEf, partRowLen)
+        # rowMaxIdx = getMaxIdx_jit_new(rowCorectEf, partRowLen)
+        rowMaxIdx = getMaxIdx_bigSize(colCorectEf, partRowLen)
+
         part = mateData.iloc[rowMaxIdx, colMaxIdx].copy()
         mateData = mateData.drop(index=part.index)
         mateData = mateData.drop(columns=part.columns)
 
-        #part minus row mean value
-        part = part - np.mean(part.values, axis=1).reshape(50,1)
-        part = np.true_divide(part, np.std(part.values, axis=1).reshape(50,1))
+        # part minus row mean value
+        part = part - np.mean(part.values, axis=1).reshape(part.shape[0], 1)
+        std = np.std(part.values, axis=1).reshape(part.shape[0], 1)
+        std[std == 0.0] = 1.0
+        part = np.true_divide(part, std)
         '''
         # get row std and col std
         rowStd = np.std(part, axis=1)
@@ -149,29 +224,30 @@ def mateData2Parts(mateData):
         part.loc["colStd", :] = colStd
         '''
         parts.append(part)
+        print("end")
     return (parts)
 
 
 # end
 
 
-def mateData2Parts_new(mateData):
+def mateData2Parts(mateData):
     partRowLen = 50
     patternLen = partRowLen
     partColLen = partRowLen
-    parts = list()
-    loopNum = int(len(mateData) / partRowLen)
+    xn, yn = mateData.shape
+    loopNum = yn if xn > yn else xn
+    # loopNum = int(len(mateData) / partRowLen)
     sizeNum = [5, 10, 20, 50]
+    parts = list()
     for i in range(loopNum):
-        if mateData.shape[0] == partRowLen and mateData.shape[1] == partColLen:
+        if mateData.shape[0] == partRowLen or mateData.shape[1] == partColLen:
             part = mateData
             part = part - np.mean(part)
-            '''
             rowStd = np.std(part, axis=1)
             colStd = np.std(part, axis=0)
-            part.loc[:, "rowStd"] = rowStd
-            part.loc["colStd", :] = colStd
-            '''
+            #part.loc[:, "rowStd"] = rowStd
+            #part.loc["colStd", :] = colStd
             parts.append(part)
             break
 
@@ -183,7 +259,6 @@ def mateData2Parts_new(mateData):
         for sn in sizeNum:
             colCorectEf = np.corrcoef(mateData.iloc[initRowIdx, :].T)
             colCorectEf[np.tril_indices(colCorectEf.shape[0], 0)] = -1000
-            #colCorectEf[np.tril_indices(colCorectEf.shape[0], 0)] = -1000
             colMaxIdx = getMaxIdx_jit(colCorectEf.copy(), sn)
             rowCorectEf = np.corrcoef(mateData.iloc[:, colMaxIdx])
             rowCorectEf[np.tril_indices(rowCorectEf.shape[0], 0)] = -1000
@@ -197,21 +272,22 @@ def mateData2Parts_new(mateData):
         mateData = mateData.drop(index=part.index)
         mateData = mateData.drop(columns=part.columns)
 
-        #part minus row mean value
-        part = part - np.mean(part.values, axis=1).reshape(50,1)
-        part = np.true_divide(part, np.std(part.values, axis=1).reshape(50,1))
-        '''
+        # part minus row mean value
+        part = part - np.mean(part.values, axis=1).reshape(patternLen, 1)
+        std = np.std(part.values, axis=1).reshape(partRowLen, 1)
+        std[std == 0.0] = 1.0
+        part = np.true_divide(part, std)
         # get row std and col std
         rowStd = np.std(part, axis=1)
         colStd = np.std(part, axis=0)
-        part.loc[:, "rowStd"] = rowStd
-        part.loc["colStd", :] = colStd
-        '''
+        #part.loc[:, "rowStd"] = rowStd
+        #part.loc["colStd", :] = colStd
         parts.append(part)
     return (parts)
 
+
 def getSamplesRowColStd(part):
-    sampleNum = 5
+    sampleNum = 500
     randomRowColIdx = getRandomRowColIdx(low=0, high=49, row=2, col=7, number=sampleNum)
     samples = list()
     samplesArr = list()
@@ -221,11 +297,11 @@ def getSamplesRowColStd(part):
         sample = part.iloc[rowIdx, colIdx].copy()
         samples.append(sample)
         samplesArr.append(sample.values)
-        rowStds.append(np.concatenate(part[["rowStd"]].iloc[rowIdx].values))
-        colStds.append(np.concatenate(part.T[["colStd"]].iloc[colIdx].values))
+        #rowStds.append(np.concatenate(part[["rowStd"]].iloc[rowIdx].values))
+        #colStds.append(np.concatenate(part.T[["colStd"]].iloc[colIdx].values))
     samplesArr = np.stack(samplesArr)
-    rowStds = np.stack(rowStds).reshape(sampleNum, 7, 1)
-    colStds = np.stack(colStds).reshape(sampleNum, 7, 1)
+    #rowStds = np.stack(rowStds).reshape(sampleNum, 7, 1)
+    #colStds = np.stack(colStds).reshape(sampleNum, 7, 1)
 
     return ([samples, samplesArr, rowStds, colStds])
 
@@ -636,7 +712,7 @@ def getBasesMtrxs(bases):
 # end
 
 def getBasesMtrxAfterKmean():
-    #base1 = [1, -1, 0, 0, 0, 0, 0]
+    # base1 = [1, -1, 0, 0, 0, 0, 0]
     base2 = [1, 1, -1, -1, 0, 0, 0]
     base3 = [2, 1, 1, -1, -1, -2, 0]
     base4 = [1, 1, 1, -1, -1, -1, 0]
@@ -653,7 +729,7 @@ def getBasesMtrxAfterKmean():
         1.11)
     basesMtrx.iloc[baseTypeNum[1]:baseTypeNum[2], 0:7] = basesMtrx.iloc[baseTypeNum[1]:baseTypeNum[2], 0:7].multiply(
         0.63)
-    #basesMtrx.iloc[baseTypeNum[2]:baseTypeNum[3], 0:7] = basesMtrx.iloc[baseTypeNum[2]:baseTypeNum[3], 0:7].multiply(0.63)
+    # basesMtrx.iloc[baseTypeNum[2]:baseTypeNum[3], 0:7] = basesMtrx.iloc[baseTypeNum[2]:baseTypeNum[3], 0:7].multiply(0.63)
 
     basesMtrx = basesMtrx.sort_values(by="label", ascending=True)
     baseIdAfterKMeans = basesMtrx.index
@@ -669,7 +745,7 @@ def getBasesMtrxAfterKmean():
 def getResortMeanFeatureMap(featureMap):
     waitColMean = list()
     xn = featureMap.shape[2]
-    for i in range(1, xn+1):
+    for i in range(1, xn + 1):
         currentColMean = np.mean(featureMap[:, :, 0:i, :], axis=2)
         zn, xn, yn = currentColMean.shape
         currentColMean = np.reshape(currentColMean, (zn, xn, 1, yn))
@@ -694,19 +770,69 @@ def myMaxPooling(featureMap, baseTypeNumAfterKmean):
 
 # end
 
-def getNewPart(samples, mateData):
+def getLabelFrSamples(samples, xn, yn):
+    labels = list()
+    xn_sample, yn_sample = samples[0][0].shape
+    for s1 in samples:
+        for s2 in s1:
+            n1 = np.sum(s2.index < xn)
+            n2 = np.sum(s2.columns < yn)
+            lab = n1*n2
+            if (lab == 0):
+                labels.append(0)
+            elif(0< lab < 25):
+                labels.append(1)
+            else:
+                labels.append(2)
+            '''
+            if(((n1*n2)/(xn_sample*yn_sample))<0.6):
+                labels.append(0)
+            else:
+                labels.append(1)
+            '''
+    return(labels)
+
+# end
+
+
+
+def getNewPart(samples, mateData, xn):
     # get all row index
     allRowIdx = list()
+    allColIdx = list()
     for sample in samples:
         if len(sample) == 0:
             return ([])
         allRowIdx.append(list(sample.index))
+        allColIdx.append(list(sample.columns))
     # count row index frequency
     allRowIdx = np.concatenate(allRowIdx)
+    allColIdx = np.concatenate(allColIdx)
+    allRowIdx = np.unique(allRowIdx)
+    allColIdx = np.unique(allColIdx)
+    freqMtrx = np.zeros((len(allRowIdx), len(allColIdx)))
+    freqMtrx = pd.DataFrame(freqMtrx, index=allRowIdx, columns=allColIdx)
+    for sample in samples:
+        for i in sample.index:
+            for j in sample.columns:
+                if i == j:
+                    continue
+                freqMtrx.loc[i, j] = freqMtrx.loc[i, j] + 1
+    value = np.argpartition(freqMtrx.values.ravel(), -xn)[-xn:]
+    i2d = np.unravel_index(value, freqMtrx.shape)
+    maxRowCountIdx = i2d[0]
+    maxColCountIdx = i2d[1]
     # get most common row index
+    '''
     from collections import Counter
-    maxRowCount = Counter(allRowIdx).most_common(50)
+    maxRowCount = Counter(allRowIdx).most_common(xn)
     maxRowCountIdx = [mc[0] for mc in maxRowCount]
+
+    maxColCount = Counter(allColIdx).most_common(xn)
+    maxColCountIdx = [mc[0] for mc in maxColCount]
+    '''
+    newPart = mateData.loc[maxRowCountIdx, maxColCountIdx]
+    '''
     # get the columns from the common row index
     allColIdx = list()
     for sample in samples:
@@ -721,23 +847,36 @@ def getNewPart(samples, mateData):
     # update partition by theshold svd
     waitColIdx = list(set(list(mateData.columns)) - set(allColIdx))
     for colIdx in waitColIdx:
+
+        if len(newPart.columns) >= xn:
+            break
+
         _, s, _ = np.linalg.svd(newPart.values)
         waitCol = mateData.loc[maxRowCountIdx, colIdx].values.reshape(len(maxRowCountIdx), 1)
         tmpPart = np.concatenate((newPart.values, waitCol), axis=1)
         _, s_new, _ = np.linalg.svd(tmpPart)
-        if s_new[1] < 2 * s[1]:
+        #if s_new[1]/s_new[0] <= s[1]/s[0]:
+        if s_new[0] >= s[0] and s_new[1] <= s[1]:
             newPart.loc[maxRowCountIdx, colIdx] = mateData.loc[maxRowCountIdx, colIdx]
+
     allColIdx = list(newPart.columns)
 
     # update the new partition thru row side
     waitRowIdx = list(set(list(mateData.index)) - set(maxRowCountIdx))
     for rowIdx in waitRowIdx:
+
+        if len(newPart.index) >= xn:
+            break
+
         _, s, _ = np.linalg.svd(newPart.values)
         waitRow = mateData.loc[rowIdx, allColIdx].values.reshape(1, len(allColIdx))
         tmpPart = np.concatenate((newPart.values, waitRow), axis=0)
         _, s_new, _ = np.linalg.svd(tmpPart)
-        if s_new[1] < 2 * s[1]:
+        #if s_new[1]/s_new[0] <= s[1]/s[0]:
+        if s_new[0] >= s[0] and s_new[1] <= s[1]:
+            newPart.loc[maxRowCountIdx, colIdx] = mateData.loc[maxRowCountIdx, colIdx]
             newPart.loc[rowIdx, allColIdx] = mateData.loc[rowIdx, allColIdx]
+    '''
     return (newPart)
 
 
@@ -768,11 +907,11 @@ def getConsistencyScoreMtrx(basesMtrx):
 @lru_cache()
 def getRandomRowColIdx(low=0, high=49, row=2, col=7, number=10):
     randomRowIdx = [
-        np.sort(np.random.choice(range(low, high+1), col, replace=False))
+        np.sort(np.random.choice(range(low, high + 1), col, replace=False))
         for _ in range(number)
     ]
     randomColIdx = [
-        np.sort(np.random.choice(range(low, high+1), col, replace=False))
+        np.sort(np.random.choice(range(low, high + 1), col, replace=False))
         for _ in range(number)
     ]
     randomRowColIdx = list(zip(randomRowIdx, randomColIdx))
@@ -999,7 +1138,7 @@ def getL1SpeBaseData(crType, minusMean, errorStdBias, blockNum, baseTimes, zn, x
             for _ in range(blocksNum):
                 c = torch.rand(xn, 1)
                 r = torch.rand(1, xn)
-                block = torch.matmul(c,r) * baseTimes
+                block = torch.matmul(c, r) * baseTimes
                 blocks.append((block + error).numpy())
     elif crType == "norm":
         if minusMean == 1:
@@ -1013,7 +1152,7 @@ def getL1SpeBaseData(crType, minusMean, errorStdBias, blockNum, baseTimes, zn, x
             for _ in range(blocksNum):
                 c = torch.randn(xn, 1)
                 r = torch.randn(1, xn)
-                block = torch.matmul(c,r) * baseTimes
+                block = torch.matmul(c, r) * baseTimes
                 blocks.append((block + error).numpy())
     else:
         base1 = [1] * int(xn * (2 / 5))

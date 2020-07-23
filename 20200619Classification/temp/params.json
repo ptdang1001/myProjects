@@ -1,0 +1,24 @@
+{
+  "dataset_file": null,
+  "dataset_file_valid": null,
+  "dim_latent": 2,
+  "dim_feature": 2000,
+  "cells_encoder": [
+    2000,
+    1000,
+    500,
+    250,
+    125,
+    72,
+    36,
+    18,
+    9,
+    4,
+    2
+  ],
+  "cells_hidden": 2,
+  "iaf_flow_length": 5,
+  "dim_autoregressive_nl": 2,
+  "initial_s_offset": 1.0,
+  "feature_normalization": true
+}

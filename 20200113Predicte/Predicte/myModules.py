@@ -205,16 +205,17 @@ class FCN(nn.Module):
     def __init__(self, rowNum, colNum):
         super(FCN, self).__init__()
         # self.pool = nn.MaxPool2d(2, 2)
-        self.fc1 = nn.Linear(rowNum * colNum, 120)
-        self.fc2 = nn.Linear(120, 84)
-        self.fc3 = nn.Linear(84, 50)
+        self.fc1 = nn.Linear(rowNum * colNum, 12)
+        self.fc2 = nn.Linear(12, 6)
+        self.fc3 = nn.Linear(6, 3)
 
     def forward(self, x):
-        x = x.view(-1, x.size()[1] * x.size()[2] * x.size()[3])
+        x = x.view(-1, x.size()[1] * x.size()[2])
         x = F.relu(self.fc1(x))
         x = F.relu(self.fc2(x))
         x = self.fc3(x)
-        return x
+
+        return (x)
 
 
 # GAN

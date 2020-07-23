@@ -12,4 +12,5 @@
 #SBATCH --time=00:60:00
 
 #module load
-python testMain.py --xn $1 --baseTimes $2 --errorStdBias $3
+#python testMain.py  --xn $1 --baseTimes $2 --errorStdBias $3
+python tmpMain.py  --xn $1 --baseTimes $2 --errorStdBias $3
