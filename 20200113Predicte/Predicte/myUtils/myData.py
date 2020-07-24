@@ -163,10 +163,7 @@ def getcorrcoef(mtrx):
 # end
 
 # @jit
-<<<<<<< HEAD
 @pysnooper.snoop()
-=======
->>>>>>> bc27f9ef45248b5553a0507017e7bb0f57f45632
 def mateData2Parts_old(mateData):
     partRowLen = 50
     patternLen = partRowLen
@@ -214,17 +211,10 @@ def mateData2Parts_old(mateData):
         mateData = mateData.drop(index=part.index)
         mateData = mateData.drop(columns=part.columns)
 
-<<<<<<< HEAD
         # part minus row mean value
         part = part - np.mean(part.values, axis=1).reshape(part.shape[0], 1)
         std = np.std(part.values, axis=1).reshape(part.shape[0], 1)
         std[std == 0.0] = 1.0
-=======
-        #part minus row mean value
-        part = part - np.mean(part.values, axis=1).reshape(patternLen,1)
-        std = np.std(part.values, axis=1).reshape(patternLen, 1)
-        std[std==0.0] = 1.0
->>>>>>> bc27f9ef45248b5553a0507017e7bb0f57f45632
         part = np.true_divide(part, std)
         '''
         # get row std and col std
@@ -256,13 +246,8 @@ def mateData2Parts(mateData):
             part = part - np.mean(part)
             rowStd = np.std(part, axis=1)
             colStd = np.std(part, axis=0)
-<<<<<<< HEAD
             #part.loc[:, "rowStd"] = rowStd
             #part.loc["colStd", :] = colStd
-=======
-            part.loc[:, "rowStd"] = rowStd
-            part.loc["colStd", :] = colStd
->>>>>>> bc27f9ef45248b5553a0507017e7bb0f57f45632
             parts.append(part)
             break
 
@@ -287,28 +272,16 @@ def mateData2Parts(mateData):
         mateData = mateData.drop(index=part.index)
         mateData = mateData.drop(columns=part.columns)
 
-<<<<<<< HEAD
         # part minus row mean value
         part = part - np.mean(part.values, axis=1).reshape(patternLen, 1)
         std = np.std(part.values, axis=1).reshape(partRowLen, 1)
         std[std == 0.0] = 1.0
-=======
-        #part minus row mean value
-        part = part - np.mean(part.values, axis=1).reshape(patternLen, 1)
-        std = np.std(part.values, axis=1).reshape(partRowLen, 1)
-        std[std==0.0]=1.0
->>>>>>> bc27f9ef45248b5553a0507017e7bb0f57f45632
         part = np.true_divide(part, std)
         # get row std and col std
         rowStd = np.std(part, axis=1)
         colStd = np.std(part, axis=0)
-<<<<<<< HEAD
         #part.loc[:, "rowStd"] = rowStd
         #part.loc["colStd", :] = colStd
-=======
-        part.loc[:, "rowStd"] = rowStd
-        part.loc["colStd", :] = colStd
->>>>>>> bc27f9ef45248b5553a0507017e7bb0f57f45632
         parts.append(part)
     return (parts)
 
@@ -874,25 +847,16 @@ def getNewPart(samples, mateData, xn):
     # update partition by theshold svd
     waitColIdx = list(set(list(mateData.columns)) - set(allColIdx))
     for colIdx in waitColIdx:
-<<<<<<< HEAD
 
         if len(newPart.columns) >= xn:
             break
 
-=======
-        if len(newPart.columns) > 300:
-            break
->>>>>>> bc27f9ef45248b5553a0507017e7bb0f57f45632
         _, s, _ = np.linalg.svd(newPart.values)
         waitCol = mateData.loc[maxRowCountIdx, colIdx].values.reshape(len(maxRowCountIdx), 1)
         tmpPart = np.concatenate((newPart.values, waitCol), axis=1)
         _, s_new, _ = np.linalg.svd(tmpPart)
-<<<<<<< HEAD
         #if s_new[1]/s_new[0] <= s[1]/s[0]:
         if s_new[0] >= s[0] and s_new[1] <= s[1]:
-=======
-        if s_new[1]/s_new[0] <= s[1]/s[0]:
->>>>>>> bc27f9ef45248b5553a0507017e7bb0f57f45632
             newPart.loc[maxRowCountIdx, colIdx] = mateData.loc[maxRowCountIdx, colIdx]
 
     allColIdx = list(newPart.columns)
@@ -900,26 +864,17 @@ def getNewPart(samples, mateData, xn):
     # update the new partition thru row side
     waitRowIdx = list(set(list(mateData.index)) - set(maxRowCountIdx))
     for rowIdx in waitRowIdx:
-<<<<<<< HEAD
 
         if len(newPart.index) >= xn:
             break
 
-=======
-        if len(newPart.index) > 300:
-            break
->>>>>>> bc27f9ef45248b5553a0507017e7bb0f57f45632
         _, s, _ = np.linalg.svd(newPart.values)
         waitRow = mateData.loc[rowIdx, allColIdx].values.reshape(1, len(allColIdx))
         tmpPart = np.concatenate((newPart.values, waitRow), axis=0)
         _, s_new, _ = np.linalg.svd(tmpPart)
-<<<<<<< HEAD
         #if s_new[1]/s_new[0] <= s[1]/s[0]:
         if s_new[0] >= s[0] and s_new[1] <= s[1]:
             newPart.loc[maxRowCountIdx, colIdx] = mateData.loc[maxRowCountIdx, colIdx]
-=======
-        if s_new[1]/s_new[0] <= s[1]/s[0]:
->>>>>>> bc27f9ef45248b5553a0507017e7bb0f57f45632
             newPart.loc[rowIdx, allColIdx] = mateData.loc[rowIdx, allColIdx]
     '''
     return (newPart)

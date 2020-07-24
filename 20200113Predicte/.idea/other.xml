@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
   <component name="PySciProjectComponent">
@@ -6,13 +5,4 @@
     <option name="PY_SCI_VIEW_SUGGESTED" value="true" />
     <option name="PY_MATPLOTLIB_IN_TOOLWINDOW" value="false" />
   </component>
-=======
-<?xml version="1.0" encoding="UTF-8"?>
-<project version="4">
-  <component name="PySciProjectComponent">
-    <option name="PY_SCI_VIEW" value="true" />
-    <option name="PY_SCI_VIEW_SUGGESTED" value="true" />
-    <option name="PY_MATPLOTLIB_IN_TOOLWINDOW" value="false" />
-  </component>
->>>>>>> bc27f9ef45248b5553a0507017e7bb0f57f45632
 </project>
